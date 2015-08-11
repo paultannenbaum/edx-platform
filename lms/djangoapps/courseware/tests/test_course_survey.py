@@ -39,6 +39,7 @@ class SurveyViewsTests(LoginEnrollmentTestCase, ModuleStoreTestCase):
         })
 
         self.course = CourseFactory.create(
+            display_name='<script>alert("XSS")</script>',
             course_survey_required=True,
             course_survey_name=self.test_survey_name
         )
@@ -171,4 +172,23 @@ class SurveyViewsTests(LoginEnrollmentTestCase, ModuleStoreTestCase):
         self.assertRedirects(
             resp,
             reverse('info', kwargs={'course_id': unicode(self.course_without_survey.id)})
+        )
+
+    def test_survey_xss(self):
+        """"""
+        response = self.client.get(
+            reverse(
+                'course_survey',
+                kwargs={'course_id': unicode(self.course.id)}
+            )
+        )
+        self.assertContains(
+            response,
+            '<span class="course-name">&lt;script&gt;alert(&#34;XSS&#34;)&lt;/script&gt;</span>',
+            status_code=200
+        )
+        self.assertNotContains(
+            response,
+            '<span class="course-name"><script>alert("XSS")</script></span>',
+            status_code=200
         )

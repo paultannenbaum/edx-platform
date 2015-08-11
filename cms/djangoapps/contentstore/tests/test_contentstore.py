@@ -25,6 +25,7 @@ from django.test.utils import override_settings
 from openedx.core.lib.tempdir import mkdtemp_clean
 from contentstore.tests.utils import parse_json, AjaxEnabledTestClient, CourseTestCase
 from contentstore.views.component import ADVANCED_COMPONENT_TYPES
+from contentstore.views.tests.test_library import LIBRARY_REST_URL
 
 from edxval.api import create_video, get_videos_for_course
 
@@ -1270,6 +1271,36 @@ class ContentStoreTest(ContentStoreTestCase):
             status_code=200,
             html=True
         )
+
+    def test_course_index_view_xss(self):
+        """Test that the index page correctly escapes course names with script
+        tags."""
+        course = CourseFactory.create(
+            display_name='<script>alert("course XSS")</script>'
+        )
+        self.client.ajax_post(LIBRARY_REST_URL, {
+            'org': course.org,
+            'library': 'lib',
+            'display_name': '<script>alert("library XSS")</script>'
+        })
+        resp = self.client.get_html('/home/')
+        for xss in ('course', 'library'):
+            self.assertContains(
+                resp,
+                '<h3 class="course-title">&lt;script&gt;alert(&#34;{name} XSS&#34;)&lt;/script&gt;</h3>'.format(
+                    name=xss
+                ),
+                status_code=200,
+                html=True
+            )
+            self.assertNotContains(
+                resp,
+                '<h3 class="course-title"><script>alert("{name} XSS")</script></h3>'.format(
+                    name=xss
+                ),
+                status_code=200,
+                html=True
+            )
 
     def test_course_overview_view_with_course(self):
         """Test viewing the course overview page with an existing course"""

@@ -258,6 +258,7 @@ class TestPayAndVerifyView(UrlResetMixin, ModuleStoreTestCase):
         response = self._get_page('verify_student_verify_now', course.id)
 
         self._assert_messaging(response, PayAndVerifyView.VERIFY_NOW_MSG)
+        self._assert_page_content_xss(response)
 
         # Expect that *all* steps are displayed,
         # but we start after the payment step (because it's already completed).
@@ -339,6 +340,8 @@ class TestPayAndVerifyView(UrlResetMixin, ModuleStoreTestCase):
 
         self._assert_messaging(response, PayAndVerifyView.PAYMENT_CONFIRMATION_MSG)
 
+        self._assert_page_content_xss(response)
+
         # Expect that *all* steps are displayed,
         # but we start at the payment confirmation step
         self._assert_steps_displayed(
@@ -370,6 +373,8 @@ class TestPayAndVerifyView(UrlResetMixin, ModuleStoreTestCase):
         )
 
         self._assert_messaging(response, PayAndVerifyView.FIRST_TIME_VERIFY_MSG)
+
+        self._assert_page_content_xss(response)
 
         # Expect that *all* steps are displayed,
         # but we start on the first verify step
@@ -456,6 +461,7 @@ class TestPayAndVerifyView(UrlResetMixin, ModuleStoreTestCase):
             PayAndVerifyView.WEBCAM_REQ,
         ])
         self._assert_upgrade_session_flag(True)
+        self._assert_page_content_xss(response)
 
     def test_upgrade_already_verified(self):
         course = self._create_course("verified")
@@ -724,7 +730,7 @@ class TestPayAndVerifyView(UrlResetMixin, ModuleStoreTestCase):
 
     def _create_course(self, *course_modes, **kwargs):
         """Create a new course with the specified course modes. """
-        course = CourseFactory.create()
+        course = CourseFactory.create(display_name='<script>alert("XSS")</script>')
 
         if kwargs.get('course_start'):
             course.start = kwargs.get('course_start')
@@ -918,6 +924,10 @@ class TestPayAndVerifyView(UrlResetMixin, ModuleStoreTestCase):
         """Check that the page redirects to the "upgrade" part of the flow. """
         url = reverse('verify_student_upgrade_and_verify', kwargs={'course_id': unicode(course_id)})
         self.assertRedirects(response, url)
+
+    def _assert_page_content_xss(self, response):
+        self.assertContains(response, '&lt;script&gt;alert(&#34;XSS&#34;)&lt;/script&gt;')
+        self.assertNotContains(response, '<script>alert("XSS")</script>')
 
     def test_course_upgrade_page_with_unicode_and_special_values_in_display_name(self):
         """Check the course information on the page. """

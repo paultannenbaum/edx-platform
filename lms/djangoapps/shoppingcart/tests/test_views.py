@@ -98,7 +98,12 @@ class ShoppingCartViewsTests(ModuleStoreTestCase):
 
         verified_course = CourseFactory.create(org='org', number='test', display_name='Test Course')
         self.verified_course_key = verified_course.id
+
+        xss_course = CourseFactory.create(org='xssorg', number='test', display_name='<script>alert("XSS")</script>')
+        self.xss_course_key = xss_course.id
+
         self.cart = Order.get_cart_for_user(self.user)
+
         self.addCleanup(patcher.stop)
 
         self.now = datetime.now(pytz.UTC)
@@ -883,6 +888,51 @@ class ShoppingCartViewsTests(ModuleStoreTestCase):
                 'line_desc': 'Honor Code Certificate for course Test Course',
                 'course_key': unicode(self.verified_course_key)
             })
+
+    def test_show_receipt_xss(self):
+        CertificateItem.add_to_order(self.cart, self.xss_course_key, self.cost, 'honor')
+        self.cart.purchase()
+
+        self.login_user()
+        url = reverse('shoppingcart.views.show_receipt', args=[self.cart.id])
+        resp = self.client.get(url)
+        self.assertContains(
+            resp,
+            '<span class="course-display-name">&lt;script&gt;alert(&#34;XSS&#34;)&lt;/script&gt;</span>',
+            status_code=200,
+            html=True
+        )
+        self.assertNotContains(
+            resp,
+            '<span class="course-display-name"><script>alert("XSS")</script></span>',
+            status_code=200,
+            html=True
+        )
+
+    @patch('shoppingcart.views.render_to_response', render_mock)
+    def test_reg_code_xss(self):
+        self.add_reg_code(self.xss_course_key)
+
+        # One courses in user shopping cart
+        self.add_course_to_user_cart(self.xss_course_key)
+        self.assertEquals(self.cart.orderitem_set.count(), 1)
+
+        post_response = self.client.post(reverse('shoppingcart.views.use_code'), {'code': self.reg_code})
+        self.assertEqual(post_response.status_code, 200)
+
+        redeem_url = reverse('register_code_redemption', args=[self.reg_code])
+        redeem_response = self.client.get(redeem_url)
+
+        self.assertContains(
+            redeem_response,
+            '&lt;script&gt;alert(&#34;XSS&#34;)&lt;/script&gt;',
+            status_code=200
+        )
+        self.assertNotContains(
+            redeem_response,
+            '<script>alert("XSS")</script>',
+            status_code=200
+        )
 
     def test_show_receipt_json_multiple_items(self):
         # Two different item types
