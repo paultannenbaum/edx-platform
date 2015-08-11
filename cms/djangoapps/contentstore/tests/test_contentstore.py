@@ -25,7 +25,6 @@ from django.test.utils import override_settings
 from openedx.core.lib.tempdir import mkdtemp_clean
 from contentstore.tests.utils import parse_json, AjaxEnabledTestClient, CourseTestCase
 from contentstore.views.component import ADVANCED_COMPONENT_TYPES
-from contentstore.views.tests.test_library import LIBRARY_REST_URL
 
 from edxval.api import create_video, get_videos_for_course
 
@@ -37,7 +36,7 @@ from xmodule.modulestore.exceptions import ItemNotFoundError
 from xmodule.modulestore.inheritance import own_metadata
 from opaque_keys.edx.keys import UsageKey, CourseKey
 from opaque_keys.edx.locations import AssetLocation, CourseLocator
-from xmodule.modulestore.tests.factories import CourseFactory, ItemFactory, check_mongo_calls
+from xmodule.modulestore.tests.factories import CourseFactory, ItemFactory, LibraryFactory, check_mongo_calls
 from xmodule.modulestore.xml_exporter import export_course_to_xml
 from xmodule.modulestore.xml_importer import import_course_from_xml, perform_xlint
 
@@ -1278,11 +1277,9 @@ class ContentStoreTest(ContentStoreTestCase):
         course = CourseFactory.create(
             display_name='<script>alert("course XSS")</script>'
         )
-        self.client.ajax_post(LIBRARY_REST_URL, {
-            'org': course.org,
-            'library': 'lib',
-            'display_name': '<script>alert("library XSS")</script>'
-        })
+
+        LibraryFactory.create(display_name='<script>alert("library XSS")</script>')
+
         resp = self.client.get_html('/home/')
         for xss in ('course', 'library'):
             self.assertContains(
