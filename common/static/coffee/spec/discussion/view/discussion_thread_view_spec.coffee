@@ -44,6 +44,10 @@ describe "DiscussionThreadView", ->
 
     describe "closed and open Threads", ->
 
+        it "sends focus to the conversation when opened", ->
+            console.log(@view, @view.$el)
+            expect(something).toHaveFocus()
+
         createDiscussionThreadView = (originallyClosed, mode) ->
             threadData = DiscussionViewSpecHelper.makeThreadWithProps({closed: originallyClosed})
             thread = new Thread(threadData)
@@ -61,6 +65,7 @@ describe "DiscussionThreadView", ->
               (model, updates, safeAjaxParams, errorMsg) ->
                 model.set(updates)
             )
+
             view
 
         checkCommentForm = (originallyClosed, mode) ->
