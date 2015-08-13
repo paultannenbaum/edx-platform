@@ -390,11 +390,11 @@
                     var team = this.teamsCollection ? this.teamsCollection.get(teamID) : null,
                         self = this,
                         deferred = $.Deferred(),
-                        teamUrl;
+                        teamUrl = this.teamsUrl + teamID + (expandUser ? '?expand=user': '');
                     if (team) {
+                        team.url = teamUrl;
                         deferred.resolve(team);
                     } else {
-                        teamUrl = this.teamsUrl + teamID + (expandUser ? '?expand=user': '');
                         team = new TeamModel({
                             id: teamID,
                             url: teamUrl

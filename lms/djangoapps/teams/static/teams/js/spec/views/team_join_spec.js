@@ -1,6 +1,6 @@
 define([
     'underscore', 'common/js/spec_helpers/ajax_helpers', 'teams/js/models/team',
-    'teams/js/views/team_join', 'teams/js/views/team_profile'
+    'teams/js/views/team_join'
 ], function (_, AjaxHelpers, TeamModel, TeamJoinView) {
     'use strict';
     describe('TeamJoinView', function () {
@@ -159,7 +159,7 @@ define([
             expect(requests.length).toBe(0);
         });
 
-        it('show correct error message if user fails to join team', function () {
+        it('shows correct error message if user fails to join team', function () {
             var requests = AjaxHelpers.requests(this);
 
             // verify user_message
