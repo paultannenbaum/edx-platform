@@ -1,5 +1,47 @@
 """
+Call Stack Manager deals with tracking call stacks of functions/methods/classes(Django Model Classes)
+Call Stack Manager logs unique call stacks. The call stacks then can be retrieved via Splunk.
+
+classes:
+CallStackManager -  stores all stacks in global dictionary and logs
+CallStackMixin - used for Model save(), and delete() method
+
+Decorators:
+@donottrack - Decorator that will halt tracking for parameterized entities,
+ (or halt tracking anything in case of non-parametrized decorator).
+@trackit - Decorator that will start tracking decorated entity.
+@track_till_now - Will log every unique call stack of parametrized entity/ entities.
+
+TRACKING DJANGO MODEL CLASSES -
+Call stacks of Model Class
+in three cases-
+1. QuerySet API
+2. save()
+3. delete()
+
+How to use:
+1. Import following in the file where class to be tracked resides
+    from openedx.core.djangoapps.call_stack_manager import CallStackManager, CallStackMixin
+2. Override objects of default manager by writing following in any model class which you want to track-
+    objects = CallStackManager()
+3. For tracking Save and Delete events-
+    Use mixin called "CallStackMixin"
+    For ex.
+        class StudentModule(models.Model, CallStackMixin):
+
+TRACKING FUNCTIONS, and METHODS-
+1. Import following-
+    from openedx.core.djangoapps.call_stack_manager import trackit
+NOTE - @trackit is non-parameterized decorator.
+
+FOR DISABLING TRACKING-
+1. Import following at appropriate location-
+    from openedx.core.djangoapps.call_stack_manager import donottrack
+** NOTE ** @donottrack accepts classes. However, while dealing with functions/methods, you should pass a string.
+ The string has a specific format i.e. '<entity_name>.__module__ + "." + <entity_name>.__name__'
+
 """
+
 
 import logging
 import traceback
@@ -40,11 +82,7 @@ def capture_call_stack(entity_name):
     # Holds temporary callstack
     # List with each element 4-tuple(filename, line number, function name, text)
     # and filtered with respect to regular expressions
-    temp_call_stack = [(frame[0],
-                        frame[1],
-                        frame[2],
-                        frame[3])
-                       for frame in [frames for frames in traceback.extract_stack()]
+    temp_call_stack = [frame for frame in [frames for frames in traceback.extract_stack()]
                        if not any(reg.match(frame[0]) for reg in REGULAR_EXPS)]
 
     def _print(frame):
@@ -85,8 +123,7 @@ class CallStackMixin(object):
     """
 
     def save(self, *args, **kwargs):
-        """
-        Logs before save() and overrides respective model API save()
+        """ Logs before save() and overrides respective model API save()
         """
         if hasattr(self, 'model'):
             capture_call_stack(self.model)
@@ -95,8 +132,7 @@ class CallStackMixin(object):
         return super(CallStackMixin, self).save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        """
-        Logs before delete() and overrides respective model API delete()
+        """ Logs before delete() and overrides respective model API delete()
         """
         if hasattr(self, 'model'):
             capture_call_stack(self.model)
@@ -184,6 +220,12 @@ def donottrack(*entities_not_to_be_tracked):
 @wrapt.decorator()
 def trackit(wrapped, instance, args, kwargs):  # pylint: disable=W0613
     """ Decorator which tracks logs call stacks
+
+    Arguments:
+            wrapped - The wrapped function which in turns needs to be called by wrapper function.
+            instance - The object to which the wrapped function was bound when it was called.
+            args - The list of positional arguments supplied when the decorated function was called.
+            kwargs - The dictionary of keyword arguments supplied when the decorated function was called.
     """
     capture_call_stack(wrapped.__module__ + "." + wrapped.__name__)
     return wrapped(*args, **kwargs)
@@ -197,10 +239,18 @@ def track_till_now(*entities_to_be_tracked):
     """
     @wrapt.decorator
     def real_track_till_now(wrapped, instance, args, kwargs):  # pylint: disable=W0613
-        """
+        """ Wrapping decorator
+
+        Arguments:
+            wrapped - The wrapped function which in turns needs to be called by wrapper function.
+            instance - The object to which the wrapped function was bound when it was called.
+            args - The list of positional arguments supplied when the decorated function was called.
+            kwargs - The dictionary of keyword arguments supplied when the decorated function was called.
         """
         entities = entities_to_be_tracked
         for entity in entities:
             if entity in STACK_BOOK:
-                log.info("Logging unique call stacks of %s \n %s", entity, STACK_BOOK[entity])  #TODO:CUSTOMIZE OUTPUT?
+                for stack in STACK_BOOK[entity]:
+                    log.info("Logging unique call stack number %s of %s \n %s", len(STACK_BOOK[entity]),
+                             entity, STACK_BOOK[entity])
     return real_track_till_now
