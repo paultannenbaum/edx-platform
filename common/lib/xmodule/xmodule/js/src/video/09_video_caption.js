@@ -280,7 +280,7 @@ function (Sjson, AsyncProcess) {
         *     false: No caption file was specified, or an empty string was
         *         specified for the Youtube type player.
         */
-        fetchCaption: function () {
+        fetchCaption: function (fetch_with_youtubeId) {
             var self = this,
                 state = this.state,
                 language = state.getCurrentLanguage(),
@@ -295,8 +295,13 @@ function (Sjson, AsyncProcess) {
                 this.fetchXHR.abort();
             }
 
-            if (state.videoType === 'youtube') {
-                youtubeId = state.youtubeId('1.0');
+            if (state.videoType === 'youtube' || fetch_with_youtubeId) {
+                try {
+                    youtubeId = state.youtubeId('1.0');
+                } catch (err) {
+                    youtubeId = null;
+                }
+
 
                 if (!youtubeId) {
                     return false;
@@ -352,7 +357,11 @@ function (Sjson, AsyncProcess) {
                     // for availability other transcripts.
                     if (_.keys(state.config.transcriptLanguages).length > 1) {
                         self.fetchAvailableTranslations();
-                    } else {
+                    }
+                    else if (!fetch_with_youtubeId && state.videoType === 'html5'){
+                        self.fetchCaption(true);
+                    }
+                    else {
                         self.hideCaptions(true, false);
                         self.hideSubtitlesEl.hide();
                     }
