@@ -1,6 +1,6 @@
 """
 Call Stack Manager deals with tracking call stacks of functions/methods/classes(Django Model Classes)
-Call Stack Manager logs unique call stacks. The call stacks then can be retrieved via Splunk.
+Call Stack Manager logs unique call stacks. The call stacks then can be retrieved via Splunk, or log reads.
 
 classes:
 CallStackManager -  stores all stacks in global dictionary and logs
@@ -86,6 +86,16 @@ def capture_call_stack(entity_name):
                        if not any(reg.match(frame[0]) for reg in REGULAR_EXPS)]
 
     def _print(frame):
+        """ Converts the tuple format of frame to a printable format
+
+        Arguments:
+            frame - current frame tuple of format (file, line number, function name, context)
+
+        Returns:
+            frame converted to a string in following format
+            File XXX, line number XXX, in XXX
+                XXXXX
+        """
         return str('\n File ' + str(frame[0]) + ', line number ' + str(frame[1]) + ', in ' +
                    str(frame[2]) + '\n\t' + str(frame[3]))
 
@@ -95,6 +105,14 @@ def capture_call_stack(entity_name):
         final_call_stack += _print(frame)
 
     def _should_get_logged(entity_name):
+        """ checks if current call stack of current entity should be logged or not
+
+        Arguments:
+            entity_name - Name of the current entity
+
+        Returns:
+            True if the current call stack is to logged, False otherwise
+        """
         if not HALT_TRACKING:
             if TRACK_FLAG and temp_call_stack not in STACK_BOOK[entity_name]:  # TRACK_FLAG False iff @donottrack
                 return True
@@ -125,19 +143,13 @@ class CallStackMixin(object):
     def save(self, *args, **kwargs):
         """ Logs before save() and overrides respective model API save()
         """
-        if hasattr(self, 'model'):
-            capture_call_stack(self.model)
-        else:
-            capture_call_stack(type(self))
+        capture_call_stack(type(self))
         return super(CallStackMixin, self).save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
         """ Logs before delete() and overrides respective model API delete()
         """
-        if hasattr(self, 'model'):
-            capture_call_stack(self.model)
-        else:
-            capture_call_stack(type(self))
+        capture_call_stack(type(self))
         return super(CallStackMixin, self).delete(*args, **kwargs)
 
 
@@ -173,6 +185,8 @@ def donottrack(*entities_not_to_be_tracked):
             args - The list of positional arguments supplied when the decorated function was called.
             kwargs - The dictionary of keyword arguments supplied when the decorated function was called.
 
+        Returns:
+            return of wrapped function
         """
         if entities_not_to_be_tracked:
             global HALT_TRACKING  # pylint: disable=W0603
@@ -222,35 +236,13 @@ def trackit(wrapped, instance, args, kwargs):  # pylint: disable=W0613
     """ Decorator which tracks logs call stacks
 
     Arguments:
-            wrapped - The wrapped function which in turns needs to be called by wrapper function.
-            instance - The object to which the wrapped function was bound when it was called.
-            args - The list of positional arguments supplied when the decorated function was called.
-            kwargs - The dictionary of keyword arguments supplied when the decorated function was called.
+        wrapped - The wrapped function which in turns needs to be called by wrapper function.
+        instance - The object to which the wrapped function was bound when it was called.
+        args - The list of positional arguments supplied when the decorated function was called.
+        kwargs - The dictionary of keyword arguments supplied when the decorated function was called.
+
+    Returns:
+        wrapped function
     """
     capture_call_stack(wrapped.__module__ + "." + wrapped.__name__)
     return wrapped(*args, **kwargs)
-
-
-def track_till_now(*entities_to_be_tracked):
-    """ Gets unique calls tacks till now
-
-    Arguments:
-        entities_to_be_tracked - Entity to be tracked
-    """
-    @wrapt.decorator
-    def real_track_till_now(wrapped, instance, args, kwargs):  # pylint: disable=W0613
-        """ Wrapping decorator
-
-        Arguments:
-            wrapped - The wrapped function which in turns needs to be called by wrapper function.
-            instance - The object to which the wrapped function was bound when it was called.
-            args - The list of positional arguments supplied when the decorated function was called.
-            kwargs - The dictionary of keyword arguments supplied when the decorated function was called.
-        """
-        entities = entities_to_be_tracked
-        for entity in entities:
-            if entity in STACK_BOOK:
-                for stack in STACK_BOOK[entity]:
-                    log.info("Logging unique call stack number %s of %s \n %s", len(STACK_BOOK[entity]),
-                             entity, STACK_BOOK[entity])
-    return real_track_till_now
