@@ -65,10 +65,10 @@ TRACK_FLAG = True
 HALT_TRACKING = []
 
 #  Dictionary which stores call logs
-# {'EntityName' : [ListOfFrames]}
+# {'EntityName' : SetOf(ListOfFrames)}
 # Frames - ('FilePath','LineNumber','Context')
-# ex. {"<class 'courseware.models.StudentModule'>" : [[(file, line number, function name, context),(---,---,---)],
-#                                                    [(file, line number, function name, context),(---,---,---)]]}
+#  {"<class 'courseware.models.StudentModule'>" : ([(file, line number, function name, context),(---,---,---)],
+#                                                 [(file, line number, function name, context),(---,---,---)])}
 STACK_BOOK = collections.defaultdict(list)
 
 
@@ -82,8 +82,8 @@ def capture_call_stack(entity_name):
     # Holds temporary callstack
     # List with each element 4-tuple(filename, line number, function name, text)
     # and filtered with respect to regular expressions
-    temp_call_stack = [frame for frame in [frames for frames in traceback.extract_stack()]
-                       if not any(reg.match(frame[0]) for reg in REGULAR_EXPS)]
+    temp_call_stack = (frame for frame in [frames for frames in traceback.extract_stack()]
+                       if not any(reg.match(frame[0]) for reg in REGULAR_EXPS))
 
     def _print(frame):
         """ Converts the tuple format of frame to a printable format
