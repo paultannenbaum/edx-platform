@@ -115,13 +115,13 @@ def trackit_func():
 class ClassFortrackit(object):
     """ Test class for track it
     """
-    @trackit
+    @trackit()
     def trackit_method(self):
         return 42
 
     @trackit
     @classmethod
-    def trackit_class_method(self):
+    def trackit_class_method(cls):
         return 42
 
 
@@ -153,6 +153,7 @@ class TestingCallStackManager(TestCase):
         core.TRACK_FLAG = True
         core.STACK_BOOK = collections.defaultdict(list)
         core.HALT_TRACKING = []
+        super(TestingCallStackManager, self).setUp()
 
     def test_save(self, log_capt):
         """ tests save() of CallStackMixin/ applies same for delete()
@@ -160,15 +161,14 @@ class TestingCallStackManager(TestCase):
         """
         ModelMixin(id_field=1).save()
         self.assertEqual(ModelMixin, log_capt.call_args[0][2])
-        self.addCleanup(log_capt)
 
     def test_withoutmixin_save(self, log_capt):
-        """tests save() of CallStackMixin/ applies same for delete()
+        """ Tests save() of CallStackMixin/ applies same for delete()
         classes without CallStackMixin should not participate in logging
         """
         ModelAnotherCallStckMngr(id_field=1).save()
         self.assertEqual(len(log_capt.call_args_list), 0)
-    
+
     def test_queryset(self, log_capt):
         """ Tests for Overriding QuerySet API
         classes with CallStackManager should get logged.

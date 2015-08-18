@@ -120,7 +120,8 @@ def capture_call_stack(entity_name):
                 return False
         else:
             if inspect.isclass(entity_name):
-                if temp_call_stack not in STACK_BOOK[entity_name] and not issubclass(entity_name, tuple(HALT_TRACKING[-1])):
+                if temp_call_stack not in STACK_BOOK[entity_name] and \
+                        not issubclass(entity_name, tuple(HALT_TRACKING[-1])):
                     return True
                 else:
                     return False
@@ -202,7 +203,6 @@ def donottrack(*entities_not_to_be_tracked):
                             return_value = next(wrapped_generator)
                             yield return_value
                     finally:
-                        global HALT_TRACKING
                         HALT_TRACKING.pop()
                 return generator_wrapper(return_value)
             else:
@@ -222,7 +222,6 @@ def donottrack(*entities_not_to_be_tracked):
                             return_value = next(wrapped_generator)
                             yield return_value
                     finally:
-                        global TRACK_FLAG
                         TRACK_FLAG = True
                 return generator_wrapper(return_value)
             else:

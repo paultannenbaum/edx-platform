@@ -71,6 +71,7 @@ def user_track(request):
 
     return HttpResponse('success')
 
+
 def server_track(request, event_type, event, page=None):
     """
     Log events related to server requests.
