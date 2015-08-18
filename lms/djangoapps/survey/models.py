@@ -13,6 +13,8 @@ from model_utils.models import TimeStampedModel
 
 from survey.exceptions import SurveyFormNameAlreadyExists, SurveyFormNotFound
 
+from xmodule_django.models import CourseKeyField
+
 log = logging.getLogger("edx.survey")
 
 
@@ -104,7 +106,7 @@ class SurveyForm(TimeStampedModel):
         """
         return SurveyAnswer.do_survey_answers_exist(self, user)
 
-    def save_user_answers(self, user, answers):
+    def save_user_answers(self, user, answers, course_key):
         """
         Store answers to the form for a given user. Answers is a dict of simple
         name/value pairs
@@ -112,7 +114,7 @@ class SurveyForm(TimeStampedModel):
         IMPORTANT: There is no validaton of form answers at this point. All data
         supplied to this method is presumed to be previously validated
         """
-        SurveyAnswer.save_answers(self, user, answers)
+        SurveyAnswer.save_answers(self, user, answers, course_key)
 
     def get_field_names(self):
         """
@@ -152,6 +154,10 @@ class SurveyAnswer(TimeStampedModel):
     form = models.ForeignKey(SurveyForm, db_index=True)
     field_name = models.CharField(max_length=255, db_index=True)
     field_value = models.CharField(max_length=1024)
+
+    # adding the course_id where the end-user answered the survey question
+    # since it didn't exist in the beginning, it is nullable
+    course_key = CourseKeyField(max_length=255, db_index=True, null=True)
 
     @classmethod
     def do_survey_answers_exist(cls, form, user):
@@ -205,7 +211,7 @@ class SurveyAnswer(TimeStampedModel):
         return results
 
     @classmethod
-    def save_answers(cls, form, user, answers):
+    def save_answers(cls, form, user, answers, course_key):
         """
         Store answers to the form for a given user. Answers is a dict of simple
         name/value pairs
@@ -219,6 +225,12 @@ class SurveyAnswer(TimeStampedModel):
             # See if there is an answer stored for this user, form, field_name pair or not
             # this will allow for update cases. This does include an additional lookup,
             # but write operations will be relatively infrequent
-            answer, __ = SurveyAnswer.objects.get_or_create(user=user, form=form, field_name=name)
+            answer, __ = SurveyAnswer.objects.get_or_create(
+                user=user,
+                form=form,
+                field_name=name
+            )
+            if course_key:
+                answer.course_key = course_key
             answer.field_value = value
             answer.save()
