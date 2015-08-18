@@ -14,6 +14,7 @@ from nose.tools import assert_true, assert_equal  # pylint: disable=no-name-in-m
 from opaque_keys.edx.locations import SlashSeparatedCourseKey
 from lms.lib.comment_client import Thread
 
+from common.tests.utils import MockSignalHandlerMixin
 from django_comment_client.base import views
 from django_comment_client.tests.group_id import CohortedTopicGroupIdTestMixin, NonCohortedTopicGroupIdTestMixin, GroupIdAssertionMixin
 from django_comment_client.tests.utils import CohortedTestCase
@@ -34,7 +35,6 @@ from util.testing import UrlResetMixin
 from xmodule.modulestore.tests.factories import CourseFactory, ItemFactory
 from xmodule.modulestore.tests.django_utils import ModuleStoreTestCase
 from xmodule.modulestore.tests.factories import check_mongo_calls
-from xmodule.modulestore.tests.utils import MockSignalHandlerMixin
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore import ModuleStoreEnum
 

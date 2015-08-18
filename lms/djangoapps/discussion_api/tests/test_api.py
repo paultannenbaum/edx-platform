@@ -19,6 +19,7 @@ from rest_framework.exceptions import PermissionDenied
 
 from opaque_keys.edx.locator import CourseLocator
 
+from common.test.utils import MockSignalHandlerMixin
 from courseware.tests.factories import BetaTesterFactory, StaffFactory
 from discussion_api.api import (
     create_comment,
@@ -59,7 +60,6 @@ from util.testing import UrlResetMixin
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.tests.django_utils import ModuleStoreTestCase, SharedModuleStoreTestCase
 from xmodule.modulestore.tests.factories import CourseFactory, ItemFactory
-from xmodule.modulestore.tests.utils import MockSignalHandlerMixin
 from xmodule.partitions.partitions import Group, UserPartition
 
 
