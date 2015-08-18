@@ -44,6 +44,14 @@ from django_comment_common.models import (
     FORUM_ROLE_STUDENT,
     Role,
 )
+from django_comment_common.signals import (
+    thread_created,
+    thread_edited,
+    thread_voted,
+    comment_created,
+    comment_edited,
+    comment_voted
+)
 from openedx.core.djangoapps.course_groups.models import CourseUserGroupPartitionGroup
 from openedx.core.djangoapps.course_groups.tests.helpers import CohortFactory
 from student.tests.factories import CourseEnrollmentFactory, UserFactory
@@ -51,6 +59,7 @@ from util.testing import UrlResetMixin
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.tests.django_utils import ModuleStoreTestCase, SharedModuleStoreTestCase
 from xmodule.modulestore.tests.factories import CourseFactory, ItemFactory
+from xmodule.modulestore.tests.utils import MockSignalHandlerMixin
 from xmodule.partitions.partitions import Group, UserPartition
 
 
@@ -1328,7 +1337,12 @@ class GetCommentListTest(CommentsServiceMockMixin, SharedModuleStoreTestCase):
 
 
 @ddt.ddt
-class CreateThreadTest(CommentsServiceMockMixin, UrlResetMixin, SharedModuleStoreTestCase):
+class CreateThreadTest(
+        CommentsServiceMockMixin,
+        UrlResetMixin,
+        SharedModuleStoreTestCase,
+        MockSignalHandlerMixin
+):
     """Tests for create_thread"""
     @classmethod
     @mock.patch.dict("django.conf.settings.FEATURES", {"ENABLE_DISCUSSION_SERVICE": True})
@@ -1363,6 +1377,7 @@ class CreateThreadTest(CommentsServiceMockMixin, UrlResetMixin, SharedModuleStor
             "created_at": "2015-05-19T00:00:00Z",
             "updated_at": "2015-05-19T00:00:00Z",
         })
+        self.setup_signal_handler(thread_created)
         actual = create_thread(self.request, self.minimal_data)
         expected = {
             "id": "test_id",
@@ -1405,6 +1420,7 @@ class CreateThreadTest(CommentsServiceMockMixin, UrlResetMixin, SharedModuleStor
                 "user_id": [str(self.user.id)],
             }
         )
+        self.assert_signal_sent(thread_created, sender=None, user=self.user)
         event_name, event_data = mock_emit.call_args[0]
         self.assertEqual(event_name, "edx.forum.thread.created")
         self.assertEqual(
@@ -1570,7 +1586,12 @@ class CreateThreadTest(CommentsServiceMockMixin, UrlResetMixin, SharedModuleStor
 
 
 @ddt.ddt
-class CreateCommentTest(CommentsServiceMockMixin, UrlResetMixin, SharedModuleStoreTestCase):
+class CreateCommentTest(
+        CommentsServiceMockMixin,
+        UrlResetMixin,
+        SharedModuleStoreTestCase,
+        MockSignalHandlerMixin
+):
     """Tests for create_comment"""
     @classmethod
     @mock.patch.dict("django.conf.settings.FEATURES", {"ENABLE_DISCUSSION_SERVICE": True})
@@ -1616,6 +1637,7 @@ class CreateCommentTest(CommentsServiceMockMixin, UrlResetMixin, SharedModuleSto
             thread_id="test_thread",
             parent_id=parent_id
         )
+        self.setup_signal_handler(comment_created)
         data = self.minimal_data.copy()
         if parent_id:
             data["parent_id"] = parent_id
@@ -1657,6 +1679,7 @@ class CreateCommentTest(CommentsServiceMockMixin, UrlResetMixin, SharedModuleSto
                 "user_id": [str(self.user.id)]
             }
         )
+        self.assert_signal_sent(comment_created, sender=None, user=self.user)
         expected_event_name = (
             "edx.forum.comment.created" if parent_id else
             "edx.forum.response.created"
@@ -1835,7 +1858,12 @@ class CreateCommentTest(CommentsServiceMockMixin, UrlResetMixin, SharedModuleSto
 
 
 @ddt.ddt
-class UpdateThreadTest(CommentsServiceMockMixin, UrlResetMixin, SharedModuleStoreTestCase):
+class UpdateThreadTest(
+        CommentsServiceMockMixin,
+        UrlResetMixin,
+        SharedModuleStoreTestCase,
+        MockSignalHandlerMixin
+):
     """Tests for update_thread"""
     @classmethod
     @mock.patch.dict("django.conf.settings.FEATURES", {"ENABLE_DISCUSSION_SERVICE": True})
@@ -1888,6 +1916,7 @@ class UpdateThreadTest(CommentsServiceMockMixin, UrlResetMixin, SharedModuleStor
 
     def test_basic(self):
         self.register_thread()
+        self.setup_signal_handler(thread_edited)
         actual = update_thread(self.request, "test_thread", {"raw_body": "Edited body"})
         expected = {
             "id": "test_thread",
@@ -1934,6 +1963,7 @@ class UpdateThreadTest(CommentsServiceMockMixin, UrlResetMixin, SharedModuleStor
                 "pinned": ["False"],
             }
         )
+        self.assert_signal_sent(thread_edited, sender=None, user=self.user)
 
     def test_nonexistent_thread(self):
         self.register_get_thread_error_response("test_thread", 404)
@@ -2142,7 +2172,12 @@ class UpdateThreadTest(CommentsServiceMockMixin, UrlResetMixin, SharedModuleStor
 
 
 @ddt.ddt
-class UpdateCommentTest(CommentsServiceMockMixin, UrlResetMixin, SharedModuleStoreTestCase):
+class UpdateCommentTest(
+        CommentsServiceMockMixin,
+        UrlResetMixin,
+        SharedModuleStoreTestCase,
+        MockSignalHandlerMixin
+):
     """Tests for update_comment"""
 
     @classmethod
@@ -2205,6 +2240,7 @@ class UpdateCommentTest(CommentsServiceMockMixin, UrlResetMixin, SharedModuleSto
     @ddt.data(None, "test_parent")
     def test_basic(self, parent_id):
         self.register_comment({"parent_id": parent_id})
+        self.setup_signal_handler(comment_edited)
         actual = update_comment(self.request, "test_comment", {"raw_body": "Edited body"})
         expected = {
             "id": "test_comment",
@@ -2238,6 +2274,7 @@ class UpdateCommentTest(CommentsServiceMockMixin, UrlResetMixin, SharedModuleSto
                 "endorsed": ["False"],
             }
         )
+        self.assert_signal_sent(comment_edited, sender=None, user=self.user)
 
     def test_nonexistent_comment(self):
         self.register_get_comment_error_response("test_comment", 404)

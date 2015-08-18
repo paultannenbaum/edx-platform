@@ -32,6 +32,14 @@ from django_comment_client.base.views import (
     track_forum_event,
 )
 from django_comment_client.utils import get_accessible_discussion_modules, is_commentable_cohorted
+from django_comment_common.signals import (
+    thread_created,
+    thread_edited,
+    thread_voted,
+    comment_created,
+    comment_edited,
+    comment_voted
+)
 from lms.lib.comment_client.comment import Comment
 from lms.lib.comment_client.thread import Thread
 from lms.lib.comment_client.utils import CommentClientRequestError
@@ -503,6 +511,10 @@ def _do_extra_actions(api_content, cc_content, request_fields, actions_form, con
                 assert field == "voted"
                 if form_value:
                     context["cc_requester"].vote(cc_content, "up")
+                    # TODO: as noted in django_comment_client, is
+                    # unvoting counted as activity?
+                    signal = thread_voted if context["thread"] else comment_voted
+                    signal.send(sender=None, user=context["request"].user)
                 else:
                     context["cc_requester"].unvote(cc_content)
 
@@ -524,11 +536,12 @@ def create_thread(request, thread_data):
         detail.
     """
     course_id = thread_data.get("course_id")
+    user = request.user
     if not course_id:
         raise ValidationError({"course_id": ["This field is required."]})
     try:
         course_key = CourseKey.from_string(course_id)
-        course = _get_course_or_404(course_key, request.user)
+        course = _get_course_or_404(course_key, user)
     except (Http404, InvalidKeyError):
         raise ValidationError({"course_id": ["Invalid value."]})
 
@@ -539,13 +552,13 @@ def create_thread(request, thread_data):
             is_commentable_cohorted(course_key, thread_data.get("topic_id"))
     ):
         thread_data = thread_data.copy()
-        thread_data["group_id"] = get_cohort_id(request.user, course_key)
+        thread_data["group_id"] = get_cohort_id(user, course_key)
     serializer = ThreadSerializer(data=thread_data, context=context)
     actions_form = ThreadActionsForm(thread_data)
     if not (serializer.is_valid() and actions_form.is_valid()):
         raise ValidationError(dict(serializer.errors.items() + actions_form.errors.items()))
     serializer.save()
-
+    thread_created.send(sender=None, user=user)
     cc_thread = serializer.object
     api_thread = serializer.data
     _do_extra_actions(api_thread, cc_thread, thread_data.keys(), actions_form, context)
@@ -591,7 +604,7 @@ def create_comment(request, comment_data):
     if not (serializer.is_valid() and actions_form.is_valid()):
         raise ValidationError(dict(serializer.errors.items() + actions_form.errors.items()))
     serializer.save()
-
+    comment_created.send(sender=None, user=request.user)
     cc_comment = serializer.object
     api_comment = serializer.data
     _do_extra_actions(api_comment, cc_comment, comment_data.keys(), actions_form, context)
@@ -634,6 +647,7 @@ def update_thread(request, thread_id, update_data):
     # Only save thread object if some of the edited fields are in the thread data, not extra actions
     if set(update_data) - set(actions_form.fields):
         serializer.save()
+        thread_edited.send(sender=None, user=request.user)
     api_thread = serializer.data
     _do_extra_actions(api_thread, cc_thread, update_data.keys(), actions_form, context)
     return api_thread
@@ -677,6 +691,7 @@ def update_comment(request, comment_id, update_data):
     # Only save comment object if some of the edited fields are in the comment data, not extra actions
     if set(update_data) - set(actions_form.fields):
         serializer.save()
+        comment_edited.send(sender=None, user=request.user)
     api_comment = serializer.data
     _do_extra_actions(api_comment, cc_comment, update_data.keys(), actions_form, context)
     return api_comment

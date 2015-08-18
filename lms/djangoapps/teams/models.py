@@ -1,18 +1,44 @@
 """Django models related to teams functionality."""
 
+from datetime import datetime
 from uuid import uuid4
 import pytz
 from datetime import datetime
 
+from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.models import User
 from django.db import models
+from django.dispatch import receiver
 from django.utils.translation import ugettext_lazy
 from django_countries.fields import CountryField
 
+from django_comment_common.signals import (
+    thread_created,
+    thread_edited,
+    thread_voted,
+    comment_created,
+    comment_edited,
+    comment_voted,
+    comment_endorsed
+)
 from xmodule_django.models import CourseKeyField
 from util.model_utils import generate_unique_readable_id
 from student.models import LanguageField, CourseEnrollment
 from .errors import AlreadyOnTeamInCourse, NotEnrolledInCourseForTeam
+
+
+@receiver(thread_voted)
+@receiver(thread_edited)
+@receiver(thread_created)
+@receiver(comment_voted)
+@receiver(comment_edited)
+@receiver(comment_created)
+@receiver(comment_endorsed)
+def post_created_handler(sender, **kwargs):  # pylint: disable=unused-argument
+    """Receive user activity signals from django_comment_client and
+    discussion_api and update the user's last activity date.
+    """
+    CourseTeamMembership.update_last_activity(kwargs['user'])
 
 
 class CourseTeam(models.Model):
@@ -134,3 +160,19 @@ class CourseTeamMembership(models.Model):
             False if not
         """
         return cls.objects.filter(user=user, team__course_id=course_id).exists()
+
+    @classmethod
+    def update_last_activity(cls, user):
+        """Set the `last_activity_at` for both this user and their team."""
+        try:
+            membership = cls.objects.get(user=user)
+        # If a privileged user is active in the discussion of a team
+        # they do not belong to, do not update their last activity
+        # information.
+        except ObjectDoesNotExist:
+            return
+        now = datetime.utcnow().replace(tzinfo=pytz.utc)
+        membership.last_activity_at = now
+        membership.team.last_activity_at = now
+        membership.team.save()
+        membership.save()

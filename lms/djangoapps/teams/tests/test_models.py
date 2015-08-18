@@ -1,13 +1,25 @@
 # -*- coding: utf-8 -*-
 """Tests for the teams API at the HTTP request level."""
+from datetime import datetime
 import ddt
+import itertools
+import pytz
 
+from django_comment_common.signals import (
+    thread_created,
+    thread_edited,
+    thread_voted,
+    comment_created,
+    comment_edited,
+    comment_voted,
+    comment_endorsed
+)
 from xmodule.modulestore.tests.django_utils import SharedModuleStoreTestCase
 from opaque_keys.edx.keys import CourseKey
 from student.tests.factories import UserFactory
 
 from .factories import CourseTeamFactory, CourseTeamMembershipFactory
-from ..models import CourseTeamMembership
+from ..models import CourseTeam, CourseTeamMembership
 
 COURSE_KEY1 = CourseKey.from_string('edx/history/1')
 COURSE_KEY2 = CourseKey.from_string('edx/history/2')
@@ -73,3 +85,50 @@ class TeamMembershipTest(SharedModuleStoreTestCase):
             CourseTeamMembership.user_in_team_for_course(user, course_id),
             expected_value
         )
+
+
+@ddt.ddt
+class TeamSignalsTest(SharedModuleStoreTestCase):
+    """Tests for handling of team-related signals."""
+
+    def setUp(self):
+        """Create a user with a team to test signals."""
+        super(TeamSignalsTest, self).setUp()
+        self.user = UserFactory.create(username="user")
+        self.moderator = UserFactory.create(username="moderator")
+        self.team = CourseTeamFactory(course_id=COURSE_KEY1)
+        self.team_membership = CourseTeamMembershipFactory(user=self.user, team=self.team)
+
+    @ddt.data(
+        *itertools.product(
+            (
+                thread_created,
+                thread_edited,
+                thread_voted,
+                comment_created,
+                comment_edited,
+                comment_voted,
+                comment_endorsed
+            ),
+            (('user', True), ('moderator', False))
+        )
+    )
+    @ddt.unpack
+    def test_signals(self, signal, (user, should_update)):
+        """Test that `last_activity` is correctly updated when team-related
+        signals are sent.
+        """
+        team_last_activity = self.team.last_activity_at
+        team_membership_last_activity = self.team_membership.last_activity_at
+        signal.send(sender=None, user=getattr(self, user))
+        team = CourseTeam.objects.get(id=self.team.id)  # pylint: disable=maybe-no-member
+        team_membership = CourseTeamMembership.objects.get(id=self.team_membership.id)  # pylint: disable=maybe-no-member
+        if should_update:
+            self.assertGreater(team.last_activity_at, team_last_activity)
+            self.assertGreater(team_membership.last_activity_at, team_membership_last_activity)
+            now = datetime.utcnow().replace(tzinfo=pytz.utc)
+            self.assertGreater(now, team.last_activity_at)
+            self.assertGreater(now, team_membership.last_activity_at)
+        else:
+            self.assertEqual(team.last_activity_at, team_last_activity)
+            self.assertEqual(team_membership.last_activity_at, team_membership_last_activity)
