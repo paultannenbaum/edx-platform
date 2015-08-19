@@ -191,8 +191,6 @@ class SurveyModelsTests(TestCase):
 
         survey.save_user_answers(self.student, self.student_answers, None)
 
-
-
     def test_multiple_user_answers(self):
         """
         Create a new survey and add answers to it
