@@ -217,15 +217,15 @@ class ViewsTestCaseMixin(object):
         with patch('student.models.cc.User.save'):
             uname = 'student'
             email = 'student@edx.org'
-            self.password = 'test'
+            self.password = 'test'  # pylint: disable=attribute-defined-outside-init
 
             # Create the user and make them active so we can log them in.
-            self.student = User.objects.create_user(uname, email, self.password)
+            self.student = User.objects.create_user(uname, email, self.password)  # pylint: disable=attribute-defined-outside-init
             self.student.is_active = True
             self.student.save()
 
             # Add a discussion moderator
-            self.moderator = UserFactory.create(password=self.password)
+            self.moderator = UserFactory.create(password=self.password)  # pylint: disable=attribute-defined-outside-init
 
             # Enroll the student in the course
             CourseEnrollmentFactory(user=self.student,
@@ -679,7 +679,10 @@ class ViewsTestCase(
             "read": False,
             "comments_count": 0,
         })
-        url = reverse('flag_abuse_for_thread', kwargs={'thread_id': '518d4237b023791dca00000d', 'course_id': unicode(self.course_id)})
+        url = reverse('flag_abuse_for_thread', kwargs={
+            'thread_id': '518d4237b023791dca00000d',
+            'course_id': unicode(self.course_id)
+        })
         response = self.client.post(url)
         assert_true(mock_request.called)
 
@@ -754,7 +757,10 @@ class ViewsTestCase(
             "read": False,
             "comments_count": 0
         })
-        url = reverse('un_flag_abuse_for_thread', kwargs={'thread_id': '518d4237b023791dca00000d', 'course_id': unicode(self.course_id)})
+        url = reverse('un_flag_abuse_for_thread', kwargs={
+            'thread_id': '518d4237b023791dca00000d',
+            'course_id': unicode(self.course_id)
+        })
         response = self.client.post(url)
         assert_true(mock_request.called)
 
@@ -823,7 +829,10 @@ class ViewsTestCase(
             "type": "comment",
             "endorsed": False
         })
-        url = reverse('flag_abuse_for_comment', kwargs={'comment_id': '518d4237b023791dca00000d', 'course_id': unicode(self.course_id)})
+        url = reverse('flag_abuse_for_comment', kwargs={
+            'comment_id': '518d4237b023791dca00000d',
+            'course_id': unicode(self.course_id)
+        })
         response = self.client.post(url)
         assert_true(mock_request.called)
 
@@ -892,7 +901,10 @@ class ViewsTestCase(
             "type": "comment",
             "endorsed": False
         })
-        url = reverse('un_flag_abuse_for_comment', kwargs={'comment_id': '518d4237b023791dca00000d', 'course_id': unicode(self.course_id)})
+        url = reverse('un_flag_abuse_for_comment', kwargs={
+            'comment_id': '518d4237b023791dca00000d',
+            'course_id': unicode(self.course_id)
+        })
         response = self.client.post(url)
         assert_true(mock_request.called)
 
