@@ -10,7 +10,6 @@ from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
 
 from survey.models import SurveyForm, SurveyAnswer
-from survey.views import view_student_survey
 
 from xmodule.modulestore.tests.factories import CourseFactory
 from xmodule.modulestore.tests.django_utils import ModuleStoreTestCase
