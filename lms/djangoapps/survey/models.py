@@ -137,7 +137,10 @@ class SurveyForm(TimeStampedModel):
         # NOTE: This wrapping doesn't change the ability to query it
         tree = etree.fromstring(u'<div>{}</div>'.format(html))
 
-        input_fields = tree.findall('.//input') + tree.findall('.//select')
+        input_fields = (
+            tree.findall('.//input') + tree.findall('.//select') +
+            tree.findall('.//textarea')
+        )
 
         for input_field in input_fields:
             if 'name' in input_field.keys() and input_field.attrib['name'] not in names:

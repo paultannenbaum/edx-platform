@@ -32,12 +32,16 @@ class SurveyViewsTests(ModuleStoreTestCase):
         self.student = User.objects.create_user('student', 'student@test.com', self.password)
 
         self.test_survey_name = 'TestSurvey'
-        self.test_form = '<input name="field1" /><input name="field2" /><select name="ddl"><option>1</option></select>'
+        self.test_form = '''
+            <input name="field1" /><input name="field2" /><select name="ddl"><option>1</option></select>
+            <textarea name="textarea" />
+        '''
 
         self.student_answers = OrderedDict({
             u'field1': u'value1',
             u'field2': u'value2',
             u'ddl': u'1',
+            u'textarea': u'textarea'
         })
 
         self.course = CourseFactory.create(
