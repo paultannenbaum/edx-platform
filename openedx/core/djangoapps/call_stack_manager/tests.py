@@ -160,7 +160,8 @@ class TestingCallStackManager(TestCase):
         classes with CallStackMixin should participate in logging.
         """
         ModelMixin(id_field=1).save()
-        self.assertEqual(ModelMixin, log_capt.call_args[0][2])
+        modelclass_logged = log_capt.call_args[0][2]
+        self.assertEqual(modelclass_logged, ModelMixin)
 
     def test_withoutmixin_save(self, log_capt):
         """ Tests save() of CallStackMixin/ applies same for delete()
@@ -175,7 +176,8 @@ class TestingCallStackManager(TestCase):
         """
         ModelAnotherCallStckMngr(id_field=1).save()
         ModelAnotherCallStckMngr.objects.filter(id_field=1)
-        self.assertEqual(ModelAnotherCallStckMngr, log_capt.call_args[0][2])
+        modelclass_logged = log_capt.call_args[0][2]
+        self.assertEqual(ModelAnotherCallStckMngr, modelclass_logged)
 
     def test_withoutqueryset(self, log_capt):
         """ Tests for Overriding QuerySet API
@@ -201,7 +203,8 @@ class TestingCallStackManager(TestCase):
         ModelAnotherCallStckMngr(id_field=1).save()
         ModelMixinCallStckMngr(id_field=1).save()
         donottrack_child_func()
-        self.assertEqual(ModelMixinCallStckMngr, log_capt.call_args[0][2])
+        modelclass_logged = log_capt.call_args[0][2]
+        self.assertEqual(ModelMixinCallStckMngr, modelclass_logged)
 
     def test_nested_parameterized_donottrack(self, log_capt):
         """ Tests parameterized nested @donottrack
@@ -209,7 +212,8 @@ class TestingCallStackManager(TestCase):
         """
         ModelAnotherCallStckMngr(id_field=1).save()
         donottrack_parent_func()
-        self.assertEqual(ModelAnotherCallStckMngr, log_capt.call_args_list[0][0][2])
+        modelclass_logged = log_capt.call_args_list[0][0][2]
+        self.assertEqual(ModelAnotherCallStckMngr, modelclass_logged)
 
     def test_nested_parameterized_donottrack_after(self, log_capt):
         """ Tests parameterized nested @donottrack
@@ -220,8 +224,10 @@ class TestingCallStackManager(TestCase):
         ModelAnotherCallStckMngr(id_field=1).save()
         # test is this- that this should get called.
         ModelAnotherCallStckMngr.objects.filter(id_field=1)
-        self.assertEqual(ModelMixinCallStckMngr, log_capt.call_args_list[0][0][2])
-        self.assertEqual(ModelAnotherCallStckMngr, log_capt.call_args_list[1][0][2])
+        first_in_log = log_capt.call_args_list[0][0][2]
+        second_in_log = log_capt.call_args_list[1][0][2]
+        self.assertEqual(ModelMixinCallStckMngr, first_in_log)
+        self.assertEqual(ModelAnotherCallStckMngr, second_in_log)
 
     def test_donottrack_called_in_func(self, log_capt):
         """ test for function which calls decorated function
@@ -230,10 +236,14 @@ class TestingCallStackManager(TestCase):
         ModelAnotherCallStckMngr(id_field=1).save()
         ModelMixinCallStckMngr(id_field=1).save()
         track_without_donottrack()
-        self.assertEqual(ModelMixinCallStckMngr, log_capt.call_args_list[0][0][2])
-        self.assertEqual(ModelAnotherCallStckMngr, log_capt.call_args_list[1][0][2])
-        self.assertEqual(ModelMixinCallStckMngr, log_capt.call_args_list[2][0][2])
-        self.assertEqual(ModelAnotherCallStckMngr, log_capt.call_args_list[3][0][2])
+        first_in_log = log_capt.call_args_list[0][0][2]
+        second_in_log = log_capt.call_args_list[1][0][2]
+        third_in_log = log_capt.call_args_list[2][0][2]
+        fourth_in_log = log_capt.call_args_list[3][0][2]
+        self.assertEqual(ModelMixinCallStckMngr, first_in_log)
+        self.assertEqual(ModelAnotherCallStckMngr, second_in_log)
+        self.assertEqual(ModelMixinCallStckMngr, third_in_log)
+        self.assertEqual(ModelAnotherCallStckMngr, fourth_in_log)
 
     def test_donottrack_child_too(self, log_capt):
         """ Test for inheritance
@@ -274,16 +284,16 @@ class TestingCallStackManager(TestCase):
         cls = ClassFortrackit()
         var = cls.trackit_method()
         self.assertEqual(42, var)
-        self.assertEqual('openedx.core.djangoapps.call_stack_manager.tests.trackit_method',
-                         str(log_capt.call_args_list[0][0][2]))
+        logged_function = str(log_capt.call_args_list[0][0][2])
+        self.assertEqual('openedx.core.djangoapps.call_stack_manager.tests.trackit_method', logged_function)
 
     def test_trackit_class_method(self, log_capt):
         """ Test for class method
         """
         var = ClassFortrackit.trackit_class_method()
         self.assertEqual(42, var)
-        self.assertEqual('openedx.core.djangoapps.call_stack_manager.tests.trackit_class_method',
-                         str(log_capt.call_args_list[0][0][2]))
+        logged_function = str(log_capt.call_args_list[0][0][2])
+        self.assertEqual('openedx.core.djangoapps.call_stack_manager.tests.trackit_class_method', logged_function)
 
     def test_yield(self, log_capt):
         """ Test for yeild generator
