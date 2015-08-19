@@ -181,16 +181,6 @@ class SurveyModelsTests(TestCase):
             else:
                 self.assertIsNone(answer_obj.course_key)
 
-    def test_none_course_id(self):
-        """
-        Make sure we can send none to the course_id
-        """
-
-        survey = self._create_test_survey()
-        self.assertIsNotNone(survey)
-
-        survey.save_user_answers(self.student, self.student_answers, None)
-
     def test_multiple_user_answers(self):
         """
         Create a new survey and add answers to it
