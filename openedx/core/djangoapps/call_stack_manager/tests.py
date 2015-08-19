@@ -115,7 +115,7 @@ def trackit_func():
 class ClassFortrackit(object):
     """ Test class for track it
     """
-    @trackit()
+    @trackit
     def trackit_method(self):
         return 42
 

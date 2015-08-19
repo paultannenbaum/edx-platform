@@ -76,7 +76,7 @@ class ChunkingCallStackManager(CallStackManager, ChunkingManager):
     pass
 
 
-class StudentModule(models.Model, CallStackMixin):
+class StudentModule(CallStackMixin, models.Model):
     """
     Keeps student state for a particular module in a particular course.
     """
@@ -153,7 +153,7 @@ class StudentModule(models.Model, CallStackMixin):
         return unicode(repr(self))
 
 
-class StudentModuleHistory(models.Model, CallStackMixin):
+class StudentModuleHistory(CallStackMixin, models.Model):
     """Keeps a complete history of state changes for a given XModule for a given
     Student. Right now, we restrict this to problems so that the table doesn't
     explode in size."""
