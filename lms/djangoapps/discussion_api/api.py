@@ -31,15 +31,17 @@ from django_comment_client.base.views import (
     get_thread_created_event_data,
     track_forum_event,
 )
-from django_comment_client.utils import get_accessible_discussion_modules, is_commentable_cohorted
 from django_comment_common.signals import (
     thread_created,
     thread_edited,
+    thread_deleted,
     thread_voted,
     comment_created,
     comment_edited,
-    comment_voted
+    comment_voted,
+    comment_deleted
 )
+from django_comment_client.utils import get_accessible_discussion_modules, is_commentable_cohorted
 from lms.lib.comment_client.comment import Comment
 from lms.lib.comment_client.thread import Thread
 from lms.lib.comment_client.utils import CommentClientRequestError
@@ -511,10 +513,8 @@ def _do_extra_actions(api_content, cc_content, request_fields, actions_form, con
                 assert field == "voted"
                 if form_value:
                     context["cc_requester"].vote(cc_content, "up")
-                    # TODO: as noted in django_comment_client, is
-                    # unvoting counted as activity?
-                    signal = thread_voted if context["thread"] else comment_voted
-                    signal.send(sender=None, user=context["request"].user)
+                    signal = thread_voted if cc_content.type == 'thread' else comment_voted
+                    signal.send(sender=None, user=context["request"].user, post=cc_content)
                 else:
                     context["cc_requester"].unvote(cc_content)
 
@@ -558,8 +558,8 @@ def create_thread(request, thread_data):
     if not (serializer.is_valid() and actions_form.is_valid()):
         raise ValidationError(dict(serializer.errors.items() + actions_form.errors.items()))
     serializer.save()
-    thread_created.send(sender=None, user=user)
     cc_thread = serializer.object
+    thread_created.send(sender=None, user=user, post=cc_thread)
     api_thread = serializer.data
     _do_extra_actions(api_thread, cc_thread, thread_data.keys(), actions_form, context)
 
@@ -604,8 +604,8 @@ def create_comment(request, comment_data):
     if not (serializer.is_valid() and actions_form.is_valid()):
         raise ValidationError(dict(serializer.errors.items() + actions_form.errors.items()))
     serializer.save()
-    comment_created.send(sender=None, user=request.user)
     cc_comment = serializer.object
+    comment_created.send(sender=None, user=request.user, post=cc_comment)
     api_comment = serializer.data
     _do_extra_actions(api_comment, cc_comment, comment_data.keys(), actions_form, context)
 
@@ -647,7 +647,7 @@ def update_thread(request, thread_id, update_data):
     # Only save thread object if some of the edited fields are in the thread data, not extra actions
     if set(update_data) - set(actions_form.fields):
         serializer.save()
-        thread_edited.send(sender=None, user=request.user)
+        thread_edited.send(sender=None, user=request.user, post=cc_thread)
     api_thread = serializer.data
     _do_extra_actions(api_thread, cc_thread, update_data.keys(), actions_form, context)
     return api_thread
@@ -691,7 +691,7 @@ def update_comment(request, comment_id, update_data):
     # Only save comment object if some of the edited fields are in the comment data, not extra actions
     if set(update_data) - set(actions_form.fields):
         serializer.save()
-        comment_edited.send(sender=None, user=request.user)
+        comment_edited.send(sender=None, user=request.user, post=cc_comment)
     api_comment = serializer.data
     _do_extra_actions(api_comment, cc_comment, update_data.keys(), actions_form, context)
     return api_comment
@@ -716,6 +716,7 @@ def delete_thread(request, thread_id):
     cc_thread, context = _get_thread_and_context(request, thread_id)
     if can_delete(cc_thread, context):
         cc_thread.delete()
+        thread_deleted.send(sender=None, user=request.user, post=cc_thread)
     else:
         raise PermissionDenied
 
@@ -739,5 +740,6 @@ def delete_comment(request, comment_id):
     cc_comment, context = _get_comment_and_context(request, comment_id)
     if can_delete(cc_comment, context):
         cc_comment.delete()
+        comment_deleted.send(sender=None, user=request.user, post=cc_comment)
     else:
         raise PermissionDenied

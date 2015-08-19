@@ -2,8 +2,10 @@
 General testing utilies.
 """
 
+from contextlib import contextmanager
+from django.dispatch import Signal
 from markupsafe import escape
-from mock import Mock
+from mock import Mock, patch
 
 
 class XssTestMixin(object):
@@ -28,38 +30,48 @@ class XssTestMixin(object):
         self.assertNotContains(response, xss_content)
 
 
+def disable_signal(module, signal):
+    """Replace `signal` inside of `module` with a dummy signal. Can be
+    used as a method or class decorator, as well as a context manager."""
+    return patch.object(module, signal, new=Signal())
+
+
 class MockSignalHandlerMixin(object):
     """Mixin for testing sending of signals."""
 
-    handlers = {}
+    @contextmanager
+    def assert_signal_sent(self, module, signal, *args, **kwargs):
+        """Assert that a signal was sent with the correct arguments. Since
+        Django calls signal handlers with the signal as an argument,
+        it is added to `kwargs`.
 
-    def setup_signal_handler(self, signal):
-        """Install a signal handler.
-
-        Args:
-          signal (Signal): The signal to register a test handler for.
-
-        Returns:
-          None
-        """
-        def handler(*args, **kwargs):
-            """No-op signal handler."""
-            pass
-        mock_handler = Mock(spec=handler)
-        signal.connect(mock_handler)
-        self.handlers[signal] = mock_handler
-
-    def assert_signal_sent(self, signal, *args, **kwargs):
-        """Assert that `signal` was sent with the correct arguments. Since
-        Django calls signal handlers with the signal as an argument, it is
-        added to `kwargs`.
+        Uses `mock.patch.object`, which requires the target to be
+        specified as a module along with a variable name inside that
+        module.
 
         Args:
-          signal (Signal): The signal which should have been sent.
+          module (module): The module in which to patch the given signal name.
+          signal (str): The name of the signal to patch.
           *args, **kwargs: The arguments which should have been passed
-            along with the signal.
+            along with the signal. If `exclude_args` is passed as a
+            keyword argument, its value should be a list of keyword
+            arguments passed to the signal whose values should be
+            ignored.
 
-        Returns:
-          None
         """
-        self.handlers[signal].assert_called_with(*args, **dict(kwargs, signal=signal))
+        with patch.object(module, signal, new=Signal()) as mock_signal:
+            def handler(*args, **kwargs):  # pylint: disable=unused-argument
+                """No-op signal handler."""
+                pass
+            mock_handler = Mock(spec=handler)
+            mock_signal.connect(mock_handler)
+            yield
+            self.assertTrue(mock_handler.called)
+            mock_args, mock_kwargs = mock_handler.call_args  # pylint: disable=unpacking-non-sequence
+            if 'exclude_args' in kwargs:
+                for key in kwargs['exclude_args']:
+                    self.assertIn(key, mock_kwargs)
+                    del mock_kwargs[key]
+                del kwargs['exclude_args']
+            self.assertEqual(mock_args, args)
+            self.assertEqual(mock_kwargs, dict(kwargs, signal=mock_signal))

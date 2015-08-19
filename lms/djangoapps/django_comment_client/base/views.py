@@ -22,9 +22,11 @@ from django_comment_common.signals import (
     thread_created,
     thread_edited,
     thread_voted,
+    thread_deleted,
     comment_created,
     comment_edited,
     comment_voted,
+    comment_deleted,
     comment_endorsed
 )
 from django_comment_common.utils import ThreadContext
@@ -216,7 +218,7 @@ def create_thread(request, course_id, commentable_id):
 
     thread.save()
 
-    thread_created.send(sender=None, user=user)
+    thread_created.send(sender=None, user=user, post=thread)
 
     # patch for backward compatibility to comments service
     if 'pinned' not in thread.attributes:
@@ -273,7 +275,7 @@ def update_thread(request, course_id, thread_id):
 
     thread.save()
 
-    thread_edited.send(sender=None, user=user)
+    thread_edited.send(sender=None, user=user, post=thread)
 
     if request.is_ajax():
         return ajax_content_response(request, course_key, thread.to_dict())
@@ -315,7 +317,7 @@ def _create_comment(request, course_key, thread_id=None, parent_id=None):
     )
     comment.save()
 
-    comment_created.send(sender=None, user=user)
+    comment_created.send(sender=None, user=user, post=comment)
 
     followed = post.get('auto_subscribe', 'false').lower() == 'true'
 
@@ -357,7 +359,7 @@ def delete_thread(request, course_id, thread_id):  # pylint: disable=unused-argu
     course_key = SlashSeparatedCourseKey.from_deprecated_string(course_id)
     thread = cc.Thread.find(thread_id)
     thread.delete()
-
+    thread_deleted.send(sender=None, user=request.user, post=thread)
     return JsonResponse(prepare_content(thread.to_dict(), course_key))
 
 
@@ -376,7 +378,7 @@ def update_comment(request, course_id, comment_id):
     comment.body = request.POST["body"]
     comment.save()
 
-    comment_edited.send(sender=None, user=request.user)
+    comment_edited.send(sender=None, user=request.user, post=comment)
 
     if request.is_ajax():
         return ajax_content_response(request, course_key, comment.to_dict())
@@ -398,7 +400,7 @@ def endorse_comment(request, course_id, comment_id):
     comment.endorsed = request.POST.get('endorsed', 'false').lower() == 'true'
     comment.endorsement_user_id = user.id
     comment.save()
-    comment_endorsed.send(sender=None, user=user)
+    comment_endorsed.send(sender=None, user=user, post=comment)
     return JsonResponse(prepare_content(comment.to_dict(), course_key))
 
 
@@ -445,6 +447,7 @@ def delete_comment(request, course_id, comment_id):
     course_key = SlashSeparatedCourseKey.from_deprecated_string(course_id)
     comment = cc.Comment.find(comment_id)
     comment.delete()
+    comment_deleted.send(sender=None, user=request.user, post=comment)
     return JsonResponse(prepare_content(comment.to_dict(), course_key))
 
 
@@ -460,8 +463,7 @@ def vote_for_comment(request, course_id, comment_id, value):
     cc_user = cc.User.from_django_user(user)
     comment = cc.Comment.find(comment_id)
     cc_user.vote(comment, value)
-    # TODO: is unvoting/unendorsing considered an activity?
-    comment_voted.send(sender=None, user=user)
+    comment_voted.send(sender=None, user=user, post=comment)
     return JsonResponse(prepare_content(comment.to_dict(), course_key))
 
 
@@ -493,7 +495,7 @@ def vote_for_thread(request, course_id, thread_id, value):
     cc_user = cc.User.from_django_user(user)
     thread = cc.Thread.find(thread_id)
     cc_user.vote(thread, value)
-    thread_voted.send(sender=None, user=user)
+    thread_voted.send(sender=None, user=user, post=thread)
     return JsonResponse(prepare_content(thread.to_dict(), course_key))
 
 

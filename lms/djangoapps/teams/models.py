@@ -15,30 +15,70 @@ from django_countries.fields import CountryField
 from django_comment_common.signals import (
     thread_created,
     thread_edited,
+    thread_deleted,
     thread_voted,
     comment_created,
     comment_edited,
+    comment_deleted,
     comment_voted,
     comment_endorsed
 )
+from opaque_keys.edx.keys import CourseKey
 from xmodule_django.models import CourseKeyField
 from util.model_utils import generate_unique_readable_id
 from student.models import LanguageField, CourseEnrollment
 from .errors import AlreadyOnTeamInCourse, NotEnrolledInCourseForTeam
+from teams import TEAM_DISCUSSION_CONTEXT
 
 
 @receiver(thread_voted)
-@receiver(thread_edited)
 @receiver(thread_created)
 @receiver(comment_voted)
-@receiver(comment_edited)
 @receiver(comment_created)
-@receiver(comment_endorsed)
-def post_created_handler(sender, **kwargs):  # pylint: disable=unused-argument
+def post_create_vote_handler(sender, **kwargs):  # pylint: disable=unused-argument
     """Receive user activity signals from django_comment_client and
-    discussion_api and update the user's last activity date.
+    discussion_api and update the user's last activity date, if the
+    discussion in which activity took place has the team context.
     """
-    CourseTeamMembership.update_last_activity(kwargs['user'])
+    post = kwargs['post']
+    if post.context == TEAM_DISCUSSION_CONTEXT:
+        CourseTeamMembership.update_last_activity(
+            kwargs['user'],
+            CourseKey.from_string(post.course_id)
+        )
+
+
+@receiver(thread_edited)
+@receiver(thread_deleted)
+@receiver(comment_edited)
+@receiver(comment_deleted)
+def post_edit_delete_handler(sender, **kwargs):  # pylint: disable=unused-argument
+    """Receive user activity signals from django_comment_client and
+    discussion_api and update the user's last activity date. Checks if
+    the user who performed the action is the original author, and that
+    the discussion has the team context.
+    """
+    user = kwargs['user']
+    post = kwargs['post']
+    if post.context == TEAM_DISCUSSION_CONTEXT and user.id == long(post.user_id):
+        CourseTeamMembership.update_last_activity(
+            user,
+            CourseKey.from_string(post.course_id)
+        )
+
+
+@receiver(comment_endorsed)
+def comment_endorsed_handler(sender, **kwargs):  # pylint: disable=unused-argument
+    """Update the user's last activity date upon endorsing a
+    comment. Checks if the comment belongs to a thread which the user
+    posted."""
+    comment = kwargs['post']
+    user = kwargs['user']
+    if comment.context == TEAM_DISCUSSION_CONTEXT and user.id == long(comment.thread.user_id):
+        CourseTeamMembership.update_last_activity(
+            user,
+            CourseKey.from_string(comment.course_id)
+        )
 
 
 class CourseTeam(models.Model):
@@ -162,10 +202,13 @@ class CourseTeamMembership(models.Model):
         return cls.objects.filter(user=user, team__course_id=course_id).exists()
 
     @classmethod
-    def update_last_activity(cls, user):
-        """Set the `last_activity_at` for both this user and their team."""
+    def update_last_activity(cls, user, course_id):
+        """Set the `last_activity_at` for both this user and their team in the
+        given course. No-op if the user is not a member of a team in
+        this course.
+        """
         try:
-            membership = cls.objects.get(user=user)
+            membership = cls.objects.get(user=user, team__course_id=course_id)
         # If a privileged user is active in the discussion of a team
         # they do not belong to, do not update their last activity
         # information.

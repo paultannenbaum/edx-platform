@@ -3,14 +3,17 @@
 from datetime import datetime
 import ddt
 import itertools
+from mock import Mock
 import pytz
 
 from django_comment_common.signals import (
     thread_created,
     thread_edited,
+    thread_deleted,
     thread_voted,
     comment_created,
     comment_edited,
+    comment_deleted,
     comment_voted,
     comment_endorsed
 )
@@ -20,6 +23,7 @@ from student.tests.factories import UserFactory
 
 from .factories import CourseTeamFactory, CourseTeamMembershipFactory
 from ..models import CourseTeam, CourseTeamMembership
+from teams import TEAM_DISCUSSION_CONTEXT
 
 COURSE_KEY1 = CourseKey.from_string('edx/history/1')
 COURSE_KEY2 = CourseKey.from_string('edx/history/2')
@@ -91,6 +95,18 @@ class TeamMembershipTest(SharedModuleStoreTestCase):
 class TeamSignalsTest(SharedModuleStoreTestCase):
     """Tests for handling of team-related signals."""
 
+    SIGNALS_LIST = (
+        thread_created,
+        thread_edited,
+        thread_deleted,
+        thread_voted,
+        comment_created,
+        comment_edited,
+        comment_deleted,
+        comment_voted,
+        comment_endorsed
+    )
+
     def setUp(self):
         """Create a user with a team to test signals."""
         super(TeamSignalsTest, self).setUp()
@@ -99,28 +115,30 @@ class TeamSignalsTest(SharedModuleStoreTestCase):
         self.team = CourseTeamFactory(course_id=COURSE_KEY1)
         self.team_membership = CourseTeamMembershipFactory(user=self.user, team=self.team)
 
+    def mock_comment(self, context):
+        """Create a mock comment service object with the given context."""
+        return Mock(
+            user_id=self.user.id,
+            course_id=unicode(COURSE_KEY1),
+            context=context,
+            **{'thread.user_id': self.user.id}
+        )
+
     @ddt.data(
         *itertools.product(
-            (
-                thread_created,
-                thread_edited,
-                thread_voted,
-                comment_created,
-                comment_edited,
-                comment_voted,
-                comment_endorsed
-            ),
+            SIGNALS_LIST,
             (('user', True), ('moderator', False))
         )
     )
     @ddt.unpack
     def test_signals(self, signal, (user, should_update)):
-        """Test that `last_activity` is correctly updated when team-related
+        """Test that `last_activity_at` is correctly updated when team-related
         signals are sent.
         """
         team_last_activity = self.team.last_activity_at
         team_membership_last_activity = self.team_membership.last_activity_at
-        signal.send(sender=None, user=getattr(self, user))
+        user = getattr(self, user)
+        signal.send(sender=None, user=user, post=self.mock_comment(TEAM_DISCUSSION_CONTEXT))
         team = CourseTeam.objects.get(id=self.team.id)  # pylint: disable=maybe-no-member
         team_membership = CourseTeamMembership.objects.get(id=self.team_membership.id)  # pylint: disable=maybe-no-member
         if should_update:
@@ -132,3 +150,16 @@ class TeamSignalsTest(SharedModuleStoreTestCase):
         else:
             self.assertEqual(team.last_activity_at, team_last_activity)
             self.assertEqual(team_membership.last_activity_at, team_membership_last_activity)
+
+    @ddt.data(*SIGNALS_LIST)
+    def test_signals_course_context(self, signal):
+        """Test that `last_activity_at` is not updated when activity takes
+        place in discussions outside of a team.
+        """
+        team_last_activity = self.team.last_activity_at
+        team_membership_last_activity = self.team_membership.last_activity_at
+        signal.send(sender=None, user=self.user, post=self.mock_comment('course'))
+        team = CourseTeam.objects.get(id=self.team.id)  # pylint: disable=maybe-no-member
+        team_membership = CourseTeamMembership.objects.get(id=self.team_membership.id)  # pylint: disable=maybe-no-member
+        self.assertEqual(team_last_activity, team.last_activity_at)
+        self.assertEqual(team_membership.last_activity_at, team_membership_last_activity)
