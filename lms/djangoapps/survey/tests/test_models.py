@@ -41,6 +41,15 @@ class SurveyModelsTests(TestCase):
             'field2': 'value2',
         })
 
+        self.student_answers_update = OrderedDict({
+            'field1': 'value1-updated',
+            'field2': 'value2-updated',
+        })
+
+        self.student_answers_update2 = OrderedDict({
+            'field1': 'value1-updated2',
+        })
+
         self.student2_answers = OrderedDict({
             'field1': 'value3'
         })
@@ -204,12 +213,43 @@ class SurveyModelsTests(TestCase):
         answers = survey.get_answers(self.student)
         self.assertEquals(len(answers.keys()), 1)
         self.assertTrue(self.student.id in answers)
-        self.assertEquals(all_answers[self.student.id], self.student_answers)
+        self.assertEquals(answers[self.student.id], self.student_answers)
 
         answers = survey.get_answers(self.student2)
         self.assertEquals(len(answers.keys()), 1)
         self.assertTrue(self.student2.id in answers)
-        self.assertEquals(all_answers[self.student2.id], self.student2_answers)
+        self.assertEquals(answers[self.student2.id], self.student2_answers)
+
+    def test_update_answers(self):
+        """
+        Make sure the update case works
+        """
+
+        survey = self._create_test_survey()
+        self.assertIsNotNone(survey)
+
+        survey.save_user_answers(self.student, self.student_answers, self.course_id)
+
+        answers = survey.get_answers(self.student)
+        self.assertEquals(len(answers.keys()), 1)
+        self.assertTrue(self.student.id in answers)
+        self.assertEquals(answers[self.student.id], self.student_answers)
+
+        # update
+        survey.save_user_answers(self.student, self.student_answers_update, self.course_id)
+
+        answers = survey.get_answers(self.student)
+        self.assertEquals(len(answers.keys()), 1)
+        self.assertTrue(self.student.id in answers)
+        self.assertEquals(answers[self.student.id], self.student_answers_update)
+
+        # update with just a subset of the origin dataset
+        survey.save_user_answers(self.student, self.student_answers_update2, self.course_id)
+
+        answers = survey.get_answers(self.student)
+        self.assertEquals(len(answers.keys()), 1)
+        self.assertTrue(self.student.id in answers)
+        self.assertEquals(answers[self.student.id], self.student_answers_update2)
 
     def test_limit_num_users(self):
         """

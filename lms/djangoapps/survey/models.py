@@ -114,7 +114,16 @@ class SurveyForm(TimeStampedModel):
         IMPORTANT: There is no validaton of form answers at this point. All data
         supplied to this method is presumed to be previously validated
         """
+
+        # first remove any answer the user might have done before
+        self.clear_user_answers(user)
         SurveyAnswer.save_answers(self, user, answers, course_key)
+
+    def clear_user_answers(self, user):
+        """
+        Removes all answers that a user has submitted
+        """
+        SurveyAnswer.objects.filter(form=self, user=user).delete()
 
     def get_field_names(self):
         """
@@ -228,12 +237,20 @@ class SurveyAnswer(TimeStampedModel):
             # See if there is an answer stored for this user, form, field_name pair or not
             # this will allow for update cases. This does include an additional lookup,
             # but write operations will be relatively infrequent
-            answer, __ = SurveyAnswer.objects.get_or_create(
+            value = answers[name]
+            defaults = {"field_value": value}
+            if course_key:
+                defaults['course_key'] = course_key
+
+            answer, created = SurveyAnswer.objects.get_or_create(
                 user=user,
                 form=form,
-                field_name=name
+                field_name=name,
+                defaults=defaults
             )
-            if course_key:
+
+            if not created:
+                # Allow for update cases.
+                answer.field_value = value
                 answer.course_key = course_key
-            answer.field_value = value
-            answer.save()
+                answer.save()
