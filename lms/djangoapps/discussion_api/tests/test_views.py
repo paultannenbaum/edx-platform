@@ -14,6 +14,8 @@ from django.core.urlresolvers import reverse
 
 from rest_framework.test import APIClient
 
+from common.test.utils import disable_signal
+from discussion_api import api
 from discussion_api.tests.utils import (
     CommentsServiceMockMixin,
     make_minimal_cs_comment,
@@ -391,6 +393,7 @@ class ThreadViewSetCreateTest(DiscussionAPIViewTestMixin, ModuleStoreTestCase):
         super(ThreadViewSetCreateTest, self).setUp()
         self.url = reverse("thread-list")
 
+    @disable_signal(api, 'thread_created')
     def test_basic(self):
         self.register_get_user_response(self.user)
         self.register_post_thread_response({
@@ -482,6 +485,7 @@ class ThreadViewSetPartialUpdateTest(DiscussionAPIViewTestMixin, ModuleStoreTest
         super(ThreadViewSetPartialUpdateTest, self).setUp()
         self.url = reverse("thread-detail", kwargs={"thread_id": "test_thread"})
 
+    @disable_signal(api, 'thread_edited')
     def test_basic(self):
         self.register_get_user_response(self.user)
         cs_thread = make_minimal_cs_thread({
@@ -582,6 +586,7 @@ class ThreadViewSetDeleteTest(DiscussionAPIViewTestMixin, ModuleStoreTestCase):
         self.url = reverse("thread-detail", kwargs={"thread_id": "test_thread"})
         self.thread_id = "test_thread"
 
+    @disable_signal(api, 'thread_deleted')
     def test_basic(self):
         self.register_get_user_response(self.user)
         cs_thread = make_minimal_cs_thread({
@@ -746,6 +751,7 @@ class CommentViewSetDeleteTest(DiscussionAPIViewTestMixin, ModuleStoreTestCase):
         self.url = reverse("comment-detail", kwargs={"comment_id": "test_comment"})
         self.comment_id = "test_comment"
 
+    @disable_signal(api, 'comment_deleted')
     def test_basic(self):
         self.register_get_user_response(self.user)
         cs_thread = make_minimal_cs_thread({
@@ -784,6 +790,7 @@ class CommentViewSetCreateTest(DiscussionAPIViewTestMixin, ModuleStoreTestCase):
         super(CommentViewSetCreateTest, self).setUp()
         self.url = reverse("comment-list")
 
+    @disable_signal(api, 'comment_created')
     def test_basic(self):
         self.register_get_user_response(self.user)
         self.register_get_thread_response(
@@ -888,6 +895,7 @@ class CommentViewSetPartialUpdateTest(DiscussionAPIViewTestMixin, ModuleStoreTes
         self.register_get_comment_response(cs_comment)
         self.register_put_comment_response(cs_comment)
 
+    @disable_signal(api, 'comment_edited')
     def test_basic(self):
         request_data = {"raw_body": "Edited body"}
         expected_response_data = {

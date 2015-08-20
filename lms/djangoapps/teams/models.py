@@ -23,7 +23,6 @@ from django_comment_common.signals import (
     comment_voted,
     comment_endorsed
 )
-from opaque_keys.edx.keys import CourseKey
 from xmodule_django.models import CourseKeyField
 from util.model_utils import generate_unique_readable_id
 from student.models import LanguageField, CourseEnrollment
@@ -41,11 +40,8 @@ def post_create_vote_handler(sender, **kwargs):  # pylint: disable=unused-argume
     discussion in which activity took place has the team context.
     """
     post = kwargs['post']
-    if post.context == TEAM_DISCUSSION_CONTEXT:
-        CourseTeamMembership.update_last_activity(
-            kwargs['user'],
-            CourseKey.from_string(post.course_id)
-        )
+    if getattr(post, "context", "course") == TEAM_DISCUSSION_CONTEXT:
+        CourseTeamMembership.update_last_activity(kwargs['user'], post.commentable_id)
 
 
 @receiver(thread_edited)
@@ -60,11 +56,8 @@ def post_edit_delete_handler(sender, **kwargs):  # pylint: disable=unused-argume
     """
     user = kwargs['user']
     post = kwargs['post']
-    if post.context == TEAM_DISCUSSION_CONTEXT and user.id == long(post.user_id):
-        CourseTeamMembership.update_last_activity(
-            user,
-            CourseKey.from_string(post.course_id)
-        )
+    if getattr(post, "context", "course") == TEAM_DISCUSSION_CONTEXT and user.id == long(post.user_id):
+        CourseTeamMembership.update_last_activity(user, post.commentable_id)
 
 
 @receiver(comment_endorsed)
@@ -74,11 +67,8 @@ def comment_endorsed_handler(sender, **kwargs):  # pylint: disable=unused-argume
     posted."""
     comment = kwargs['post']
     user = kwargs['user']
-    if comment.context == TEAM_DISCUSSION_CONTEXT and user.id == long(comment.thread.user_id):
-        CourseTeamMembership.update_last_activity(
-            user,
-            CourseKey.from_string(comment.course_id)
-        )
+    if getattr(comment, "context", "course") == TEAM_DISCUSSION_CONTEXT and user.id == long(comment.thread.user_id):
+        CourseTeamMembership.update_last_activity(user, comment.commentable_id)
 
 
 class CourseTeam(models.Model):
@@ -202,13 +192,13 @@ class CourseTeamMembership(models.Model):
         return cls.objects.filter(user=user, team__course_id=course_id).exists()
 
     @classmethod
-    def update_last_activity(cls, user, course_id):
+    def update_last_activity(cls, user, discussion_topic_id):
         """Set the `last_activity_at` for both this user and their team in the
-        given course. No-op if the user is not a member of a team in
-        this course.
+        given discussion topic. No-op if the user is not a member of
+        the team for this discussion.
         """
         try:
-            membership = cls.objects.get(user=user, team__course_id=course_id)
+            membership = cls.objects.get(user=user, team__discussion_topic_id=discussion_topic_id)
         # If a privileged user is active in the discussion of a team
         # they do not belong to, do not update their last activity
         # information.

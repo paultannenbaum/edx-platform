@@ -107,19 +107,21 @@ class TeamSignalsTest(SharedModuleStoreTestCase):
         comment_endorsed
     )
 
+    DISCUSSION_TOPIC_ID = 'test_topic'
+
     def setUp(self):
         """Create a user with a team to test signals."""
         super(TeamSignalsTest, self).setUp()
         self.user = UserFactory.create(username="user")
         self.moderator = UserFactory.create(username="moderator")
-        self.team = CourseTeamFactory(course_id=COURSE_KEY1)
+        self.team = CourseTeamFactory(discussion_topic_id=self.DISCUSSION_TOPIC_ID)
         self.team_membership = CourseTeamMembershipFactory(user=self.user, team=self.team)
 
     def mock_comment(self, context):
         """Create a mock comment service object with the given context."""
         return Mock(
             user_id=self.user.id,
-            course_id=unicode(COURSE_KEY1),
+            commentable_id=self.DISCUSSION_TOPIC_ID,
             context=context,
             **{'thread.user_id': self.user.id}
         )
