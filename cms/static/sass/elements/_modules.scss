@@ -195,16 +195,17 @@
       }
     }
 
-    a {
+  button {
       @include clearfix();
       @include transition(none);
       @extend %t-demi-strong;
       display: block;
+      width: 100%;
       border: 0px;
       padding: 7px $baseline;
       background: $white;
       color: $gray-d3;
-
+      text-align: left;
 
       &:hover {
         @include transition(background-color $tmg-f2 linear 0s);
