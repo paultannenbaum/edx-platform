@@ -103,8 +103,9 @@ div.info-wrapper {
     }
 
     ol {
+      margin: 0 0 14px 26px;
       li {
-        margin: 0 26px 14px 26px;
+        margin: 0 26px 14px 0;
         @include text-align(left);
 
         a {
