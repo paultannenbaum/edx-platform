@@ -12,7 +12,6 @@ import HTMLParser
 
 from django.conf import settings
 from django.contrib.auth.models import User
-from django.contrib.staticfiles import finders
 from django.core.cache import cache
 from django.core.mail import EmailMessage
 from django.core.urlresolvers import reverse
@@ -94,7 +93,9 @@ def send_credit_notifications(username, course_key):
     # add alternative html message
     email_body_content = cache.get('credit.email.css-email-body')
     if email_body_content is None:
-        html_file_path = file_path_finder('templates/credit_notifications/credit_eligibility_email.html')
+        html_file_path = os.path.join(
+            settings.PROJECT_ROOT, 'templates/credit_notifications/credit_eligibility_email.html'
+        )
         if html_file_path:
             with open(html_file_path, 'r') as cur_file:
                 cur_text = cur_file.read()
@@ -130,8 +131,6 @@ def with_inline_css(html_without_css):
     else returns html with out the inline css.
     """
     css_filepath = settings.NOTIFICATION_EMAIL_CSS
-    if not css_filepath.startswith('/'):
-        css_filepath = file_path_finder(settings.NOTIFICATION_EMAIL_CSS)
 
     if css_filepath:
         with open(css_filepath, "r") as _file:
@@ -149,8 +148,6 @@ def attach_image(img_dict, filename):
     Attach images in the email headers.
     """
     img_path = img_dict['path']
-    if not img_path.startswith('/'):
-        img_path = file_path_finder(img_path)
 
     if img_path:
         with open(img_path, 'rb') as img:
@@ -158,13 +155,6 @@ def attach_image(img_dict, filename):
             msg_image.add_header('Content-ID', '<{}>'.format(img_dict['cid']))
             msg_image.add_header("Content-Disposition", "inline", filename=filename)
         return msg_image
-
-
-def file_path_finder(path):
-    """
-    Return physical path of file if found.
-    """
-    return finders.FileSystemFinder().find(path)
 
 
 def _email_url_parser(url_name, extra_param=None):

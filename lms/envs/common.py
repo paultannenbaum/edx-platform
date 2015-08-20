@@ -2637,8 +2637,8 @@ JWT_EXPIRATION = 30
 JWT_ISSUER = None
 
 # Credit notifications settings
-NOTIFICATION_EMAIL_CSS = "templates/credit_notifications/credit_notification.css"
-NOTIFICATION_EMAIL_EDX_LOGO = "templates/credit_notifications/edx-logo-header.png"
+NOTIFICATION_EMAIL_CSS = os.path.join(PROJECT_ROOT, "templates/credit_notifications/credit_notification.css")
+NOTIFICATION_EMAIL_EDX_LOGO = os.path.join(PROJECT_ROOT, "static/images/edx-logo-header.png")
 
 #### PROCTORING CONFIGURATION DEFAULTS
 
