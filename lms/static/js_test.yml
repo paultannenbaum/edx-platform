@@ -75,9 +75,9 @@ src_paths:
 
 # Paths to spec (test) JavaScript files
 spec_paths:
-    #- js/spec
+    - js/spec
     - teams/js/spec
-    #- support/js/spec
+    - support/js/spec
 
 # Paths to fixture files (optional)
 # The fixture path will be set automatically when using jasmine-jquery.
