@@ -13,7 +13,7 @@ define([
             $('.discussion-module').data('discussion-id', TeamSpecHelpers.testTeamDiscussionID);
             $('.discussion-module').data('user-create-comment', true);
             $('.discussion-module').data('user-create-subcomment', true);
-            DiscussionSpecHelper.setUnderscoreFixtures();
+            setTimeout(DiscussionSpecHelper.setUnderscoreFixtures, 5000);
         });
 
         createDiscussionView = function(requests, threads) {
