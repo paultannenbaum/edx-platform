@@ -101,9 +101,8 @@ from branding import api as branding_api
     else:
         header_file = microsite.get_template_path('navigation.html')
 
-    google_analytics_file = microsite.get_template_path('google_analytics.html')
-
     style_overrides_file = microsite.get_value('css_overrides_file')
+  google_tag_manager_file = microsite.get_template_path('google_tag_manager.html')
 %>
 
   % if header_extra_file:
@@ -116,7 +115,6 @@ from branding import api as branding_api
   <meta name="path_prefix" content="${EDX_ROOT_URL}">
   <meta name="google-site-verification" content="_mipQ4AtZQDNmbtOkwehQDOgCxUUV2fb_C0b6wbiRHY" />
 
-  <%include file="${google_analytics_file}" />
 
 % if style_overrides_file:
   <link rel="stylesheet" type="text/css" href="${static.url(style_overrides_file)}" />
@@ -125,6 +123,7 @@ from branding import api as branding_api
 </head>
 
 <body class="${static.dir_rtl()} <%block name='bodyclass'/> lang_${LANGUAGE_CODE}">
+<%include file="${google_tag_manager_file}" />
 % if not disable_window_wrap:
   <div class="window-wrap" dir="${static.dir_rtl()}">
 % endif
