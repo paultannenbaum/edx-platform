@@ -124,6 +124,10 @@ class ClassFortrackit(object):
     def trackit_class_method(cls):
         return 42
 
+@donottrack(ClassFortrackit.trackit_class_method)
+def abc():
+    for i in range(0,5):
+        __ = ClassFortrackit.trackit_class_method()
 
 @donottrack()
 def donottrack_yield_func():
@@ -284,19 +288,29 @@ class TestingCallStackManager(TestCase):
         cls = ClassFortrackit()
         var = cls.trackit_method()
         self.assertEqual(42, var)
-        logged_function = str(log_capt.call_args_list[0][0][2])
-        self.assertEqual('openedx.core.djangoapps.call_stack_manager.tests.trackit_method', logged_function)
+        logged_function_module = log_capt.call_args_list[0][0][2]
+        logged_function_name = log_capt.call_args_list[0][0][3]
+        # check tracking the same function
+        self.assertEqual(ClassFortrackit.trackit_method.__name__, logged_function_name)
+        self.assertEqual(ClassFortrackit.trackit_method.__module__, logged_function_module)
 
     def test_trackit_class_method(self, log_capt):
         """ Test for class method
         """
         var = ClassFortrackit.trackit_class_method()
         self.assertEqual(42, var)
-        logged_function = str(log_capt.call_args_list[0][0][2])
-        self.assertEqual('openedx.core.djangoapps.call_stack_manager.tests.trackit_class_method', logged_function)
+        logged_function_module = log_capt.call_args_list[0][0][2]
+        logged_function_name = log_capt.call_args_list[0][0][3]
+        # check tracking the same function
+        self.assertEqual(ClassFortrackit.trackit_class_method.__name__, logged_function_name)
+        self.assertEqual(ClassFortrackit.trackit_class_method.__module__, logged_function_module)
 
     def test_yield(self, log_capt):
         """ Test for yeild generator
         """
         donottrack_yield_func()
+        self.assertEqual(len(log_capt.call_args_list), 0)
+
+    def test_donottrack_function(self, log_capt):
+        abc()
         self.assertEqual(len(log_capt.call_args_list), 0)

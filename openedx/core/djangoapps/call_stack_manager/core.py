@@ -37,8 +37,8 @@ NOTE - @trackit is non-parameterized decorator.
 FOR DISABLING TRACKING-
 1. Import following at appropriate location-
     from openedx.core.djangoapps.call_stack_manager import donottrack
-** NOTE ** @donottrack accepts classes. However, while dealing with functions/methods, you should pass a string.
- The string has a specific format i.e. '<entity_name>.__module__ + "." + <entity_name>.__name__'
+NOTE - You need to import function/class you do not want to track in.
+
 
 """
 
@@ -110,33 +110,38 @@ def capture_call_stack(entity_name):
         Returns:
             True if the current call stack is to logged, False otherwise
         """
+        is_entity_in_stack_book = temp_call_stack in STACK_BOOK[entity_name]
+
         if HALT_TRACKING:
-            if not HALT_TRACKING[-1]: # if it is None
-                return False
+            if inspect.isclass(entity_name):
+                is_class_in_halt_tracking = issubclass(entity_name, tuple(HALT_TRACKING[-1]))
             else:
-                if temp_call_stack in STACK_BOOK[entity_name]:
-                    return False
-                else:
-                    if inspect.isclass(entity_name):
-                        if not issubclass(entity_name, tuple(HALT_TRACKING[-1])):
-                            return True
-                        else:
-                            return False
-                    else:
-                        if entity_name not in tuple(HALT_TRACKING[-1]):
-                            return True
-                        else:
-                            return False
-        else:
-            if temp_call_stack in STACK_BOOK[entity_name]:
+                is_function_in_halt_tracking = any((entity_name.__name__ == x.__name__ and
+                                            entity_name.__module__ == x.__module__) for x in tuple(HALT_TRACKING[-1]))
+
+            is_top_none = (HALT_TRACKING[-1] is None)
+
+            if is_top_none:
                 return False
-            else:
+            # if entity is class
+            elif inspect.isclass(entity_name) and not is_class_in_halt_tracking and not is_entity_in_stack_book:
                 return True
+            # if entity is function/method
+            elif not inspect.isclass(entity_name) and not is_function_in_halt_tracking and not is_entity_in_stack_book:
+                return True
+            else:
+                False
+        else:  # if HALT_TRACKING is not NULL
+            return not is_entity_in_stack_book
 
     if _should_get_logged(entity_name):
         STACK_BOOK[entity_name].append(temp_call_stack)
-        log.info("Logging new call stack number %s for %s:\n %s", len(STACK_BOOK[entity_name]),
+        if inspect.isclass(entity_name):
+            log.info("Logging new call stack number %s for %s:\n %s", len(STACK_BOOK[entity_name]),
                  entity_name, final_call_stack)
+        else:
+            log.info("Logging new call stack number %s for %s.%s:\n %s", len(STACK_BOOK[entity_name]),
+                     entity_name.__module__, entity_name.__name__ , final_call_stack)
 
 
 class CallStackMixin(object):
@@ -162,10 +167,7 @@ class CallStackManager(Manager):
     def get_query_set(self):
         """ Override the default queryset API method
         """
-        if hasattr(self, 'model'):
-            capture_call_stack(self.model)
-        else:
-            capture_call_stack(type(self))
+        capture_call_stack(self.model)
         return super(CallStackManager, self).get_query_set()
 
 
@@ -182,7 +184,7 @@ def donottrack(*entities_not_to_be_tracked):
         entities_not_to_be_tracked = [None]
 
     @wrapt.decorator
-    def real_donottrack(wrapped, instance, args, kwargs):  # pylint: disable=W0613
+    def real_donottrack(wrapped, instance, args, kwargs):
         """ Takes function to be decorated and returns wrapped function
 
         Arguments:
@@ -194,11 +196,12 @@ def donottrack(*entities_not_to_be_tracked):
         Returns:
             return of wrapped function
         """
-        global HALT_TRACKING  # pylint: disable=W0603
-        HALT_TRACKING.append(entities_not_to_be_tracked)
-        HALT_TRACKING[-1] = list(set([x for sublist in HALT_TRACKING for x in sublist]))
+        global HALT_TRACKING
+        if HALT_TRACKING:
+            HALT_TRACKING.append(list(set(HALT_TRACKING[-1] + list(entities_not_to_be_tracked))))
+        else:
+            HALT_TRACKING.append(list(entities_not_to_be_tracked))
         return_value = wrapped(*args, **kwargs)
-
         # check if the returning class is a generator
         if isinstance(return_value, types.GeneratorType):
             def generator_wrapper(wrapped_generator):
@@ -215,8 +218,8 @@ def donottrack(*entities_not_to_be_tracked):
     return real_donottrack
 
 
-@wrapt.decorator()
-def trackit(wrapped, instance, args, kwargs):  # pylint: disable=W0613
+@wrapt.decorator
+def trackit(wrapped, instance, args, kwargs):
     """ Decorator which tracks logs call stacks
 
     Arguments:
@@ -228,6 +231,7 @@ def trackit(wrapped, instance, args, kwargs):  # pylint: disable=W0613
     Returns:
         wrapped function
     """
-    from nose.tools import set_trace; set_trace()
-    capture_call_stack(wrapped.__module__ + "." + wrapped.__name__)
+    capture_call_stack(wrapped)
     return wrapped(*args, **kwargs)
+
+
