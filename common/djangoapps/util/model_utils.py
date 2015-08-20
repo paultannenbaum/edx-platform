@@ -180,7 +180,7 @@ def generate_unique_readable_id(name, queryset, lookup_field):
         string: generated unique identifier
     """
     candidate = slugify(name)
-    conflicts = queryset.filter(**{lookup_field + '__startswith': candidate}).values_list(lookup_field, flat=True)
+    conflicts = queryset.filter(**{lookup_field + '__istartswith': candidate}).values_list(lookup_field, flat=True)
 
     if conflicts and candidate in conflicts:
         suffix = 2
