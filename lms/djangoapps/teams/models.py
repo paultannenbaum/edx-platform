@@ -35,13 +35,9 @@ from teams import TEAM_DISCUSSION_CONTEXT
 @receiver(comment_voted)
 @receiver(comment_created)
 def post_create_vote_handler(sender, **kwargs):  # pylint: disable=unused-argument
-    """Receive user activity signals from django_comment_client and
-    discussion_api and update the user's last activity date, if the
-    discussion in which activity took place has the team context.
-    """
-    post = kwargs['post']
-    if getattr(post, "context", "course") == TEAM_DISCUSSION_CONTEXT:
-        CourseTeamMembership.update_last_activity(kwargs['user'], post.commentable_id)
+    """Update the user's last activity date upon creating or voting for a
+    post."""
+    handle_activity(kwargs['user'], kwargs['post'])
 
 
 @receiver(thread_edited)
@@ -49,26 +45,29 @@ def post_create_vote_handler(sender, **kwargs):  # pylint: disable=unused-argume
 @receiver(comment_edited)
 @receiver(comment_deleted)
 def post_edit_delete_handler(sender, **kwargs):  # pylint: disable=unused-argument
-    """Receive user activity signals from django_comment_client and
-    discussion_api and update the user's last activity date. Checks if
-    the user who performed the action is the original author, and that
-    the discussion has the team context.
-    """
-    user = kwargs['user']
+    """Update the user's last activity date upon editing or deleting a
+    post."""
     post = kwargs['post']
-    if getattr(post, "context", "course") == TEAM_DISCUSSION_CONTEXT and user.id == long(post.user_id):
-        CourseTeamMembership.update_last_activity(user, post.commentable_id)
+    handle_activity(kwargs['user'], post, long(post.user_id))
 
 
 @receiver(comment_endorsed)
 def comment_endorsed_handler(sender, **kwargs):  # pylint: disable=unused-argument
-    """Update the user's last activity date upon endorsing a
-    comment. Checks if the comment belongs to a thread which the user
-    posted."""
+    """Update the user's last activity date upon endorsing a comment."""
     comment = kwargs['post']
-    user = kwargs['user']
-    if getattr(comment, "context", "course") == TEAM_DISCUSSION_CONTEXT and user.id == long(comment.thread.user_id):
-        CourseTeamMembership.update_last_activity(user, comment.commentable_id)
+    handle_activity(kwargs['user'], comment, long(comment.thread.user_id))
+
+
+def handle_activity(user, post, original_author_id=None):
+    """Handle user activity from django_comment_client and discussion_api
+    and update the user's last activity date. Checks if the user who
+    performed the action is the original author, and that the
+    discussion has the team context.
+    """
+    if original_author_id is not None and user.id != original_author_id:
+        return
+    if getattr(post, "context", "course") == TEAM_DISCUSSION_CONTEXT:
+        CourseTeamMembership.update_last_activity(user, post.commentable_id)
 
 
 class CourseTeam(models.Model):

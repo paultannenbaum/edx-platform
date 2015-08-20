@@ -1522,7 +1522,8 @@ class CreateThreadTest(
         self.register_thread_votes_response("test_id")
         data = self.minimal_data.copy()
         data["voted"] = "True"
-        result = create_thread(self.request, data)
+        with self.assert_signal_sent(api, 'thread_voted', sender=None, user=self.user, exclude_args=('post',)):
+            result = create_thread(self.request, data)
         self.assertEqual(result["voted"], True)
         cs_request = httpretty.last_request()
         self.assertEqual(urlparse(cs_request.path).path, "/api/v1/threads/test_id/votes")
@@ -1739,7 +1740,8 @@ class CreateCommentTest(
         self.register_comment_votes_response("test_comment")
         data = self.minimal_data.copy()
         data["voted"] = "True"
-        result = create_comment(self.request, data)
+        with self.assert_signal_sent(api, 'comment_voted', sender=None, user=self.user, exclude_args=('post',)):
+            result = create_comment(self.request, data)
         self.assertEqual(result["voted"], True)
         cs_request = httpretty.last_request()
         self.assertEqual(urlparse(cs_request.path).path, "/api/v1/comments/test_comment/votes")
@@ -2100,7 +2102,12 @@ class UpdateThreadTest(
         self.register_thread_votes_response("test_thread")
         self.register_thread()
         data = {"voted": new_voted}
-        result = update_thread(self.request, "test_thread", data)
+        if old_voted == new_voted:
+            result = update_thread(self.request, "test_thread", data)
+        else:
+            # Vote signals should only be sent if the number of votes has changed
+            with self.assert_signal_sent(api, 'thread_voted', sender=None, user=self.user, exclude_args=('post',)):
+                result = update_thread(self.request, "test_thread", data)
         self.assertEqual(result["voted"], new_voted)
         last_request_path = urlparse(httpretty.last_request().path).path
         votes_url = "/api/v1/threads/test_thread/votes"
@@ -2421,7 +2428,12 @@ class UpdateCommentTest(
         self.register_comment_votes_response("test_comment")
         self.register_comment()
         data = {"voted": new_voted}
-        result = update_comment(self.request, "test_comment", data)
+        if old_voted == new_voted:
+            result = update_comment(self.request, "test_comment", data)
+        else:
+            # Vote signals should only be sent if the number of votes has changed
+            with self.assert_signal_sent(api, 'comment_voted', sender=None, user=self.user, exclude_args=('post',)):
+                result = update_comment(self.request, "test_comment", data)
         self.assertEqual(result["voted"], new_voted)
         last_request_path = urlparse(httpretty.last_request().path).path
         votes_url = "/api/v1/comments/test_comment/votes"

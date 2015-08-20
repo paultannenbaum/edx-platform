@@ -387,13 +387,13 @@ class ThreadViewSetListTest(DiscussionAPIViewTestMixin, ModuleStoreTestCase):
 
 
 @httpretty.activate
+@disable_signal(api, 'thread_created')
 class ThreadViewSetCreateTest(DiscussionAPIViewTestMixin, ModuleStoreTestCase):
     """Tests for ThreadViewSet create"""
     def setUp(self):
         super(ThreadViewSetCreateTest, self).setUp()
         self.url = reverse("thread-list")
 
-    @disable_signal(api, 'thread_created')
     def test_basic(self):
         self.register_get_user_response(self.user)
         self.register_post_thread_response({
@@ -479,13 +479,13 @@ class ThreadViewSetCreateTest(DiscussionAPIViewTestMixin, ModuleStoreTestCase):
 
 
 @httpretty.activate
+@disable_signal(api, 'thread_edited')
 class ThreadViewSetPartialUpdateTest(DiscussionAPIViewTestMixin, ModuleStoreTestCase):
     """Tests for ThreadViewSet partial_update"""
     def setUp(self):
         super(ThreadViewSetPartialUpdateTest, self).setUp()
         self.url = reverse("thread-detail", kwargs={"thread_id": "test_thread"})
 
-    @disable_signal(api, 'thread_edited')
     def test_basic(self):
         self.register_get_user_response(self.user)
         cs_thread = make_minimal_cs_thread({
@@ -579,6 +579,7 @@ class ThreadViewSetPartialUpdateTest(DiscussionAPIViewTestMixin, ModuleStoreTest
 
 
 @httpretty.activate
+@disable_signal(api, 'thread_deleted')
 class ThreadViewSetDeleteTest(DiscussionAPIViewTestMixin, ModuleStoreTestCase):
     """Tests for ThreadViewSet delete"""
     def setUp(self):
@@ -586,7 +587,6 @@ class ThreadViewSetDeleteTest(DiscussionAPIViewTestMixin, ModuleStoreTestCase):
         self.url = reverse("thread-detail", kwargs={"thread_id": "test_thread"})
         self.thread_id = "test_thread"
 
-    @disable_signal(api, 'thread_deleted')
     def test_basic(self):
         self.register_get_user_response(self.user)
         cs_thread = make_minimal_cs_thread({
@@ -743,6 +743,7 @@ class CommentViewSetListTest(DiscussionAPIViewTestMixin, ModuleStoreTestCase):
 
 
 @httpretty.activate
+@disable_signal(api, 'comment_deleted')
 class CommentViewSetDeleteTest(DiscussionAPIViewTestMixin, ModuleStoreTestCase):
     """Tests for ThreadViewSet delete"""
 
@@ -751,7 +752,6 @@ class CommentViewSetDeleteTest(DiscussionAPIViewTestMixin, ModuleStoreTestCase):
         self.url = reverse("comment-detail", kwargs={"comment_id": "test_comment"})
         self.comment_id = "test_comment"
 
-    @disable_signal(api, 'comment_deleted')
     def test_basic(self):
         self.register_get_user_response(self.user)
         cs_thread = make_minimal_cs_thread({
@@ -784,13 +784,13 @@ class CommentViewSetDeleteTest(DiscussionAPIViewTestMixin, ModuleStoreTestCase):
 
 
 @httpretty.activate
+@disable_signal(api, 'comment_created')
 class CommentViewSetCreateTest(DiscussionAPIViewTestMixin, ModuleStoreTestCase):
     """Tests for CommentViewSet create"""
     def setUp(self):
         super(CommentViewSetCreateTest, self).setUp()
         self.url = reverse("comment-list")
 
-    @disable_signal(api, 'comment_created')
     def test_basic(self):
         self.register_get_user_response(self.user)
         self.register_get_thread_response(
@@ -868,6 +868,7 @@ class CommentViewSetCreateTest(DiscussionAPIViewTestMixin, ModuleStoreTestCase):
         self.assertEqual(response_data, expected_response_data)
 
 
+@disable_signal(api, 'comment_edited')
 class CommentViewSetPartialUpdateTest(DiscussionAPIViewTestMixin, ModuleStoreTestCase):
     """Tests for CommentViewSet partial_update"""
     def setUp(self):
@@ -895,7 +896,6 @@ class CommentViewSetPartialUpdateTest(DiscussionAPIViewTestMixin, ModuleStoreTes
         self.register_get_comment_response(cs_comment)
         self.register_put_comment_response(cs_comment)
 
-    @disable_signal(api, 'comment_edited')
     def test_basic(self):
         request_data = {"raw_body": "Edited body"}
         expected_response_data = {

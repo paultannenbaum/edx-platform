@@ -511,10 +511,10 @@ def _do_extra_actions(api_content, cc_content, request_fields, actions_form, con
                     cc_content.unFlagAbuse(context["cc_requester"], cc_content, removeAll=False)
             else:
                 assert field == "voted"
+                signal = thread_voted if cc_content.type == 'thread' else comment_voted
+                signal.send(sender=None, user=context["request"].user, post=cc_content)
                 if form_value:
                     context["cc_requester"].vote(cc_content, "up")
-                    signal = thread_voted if cc_content.type == 'thread' else comment_voted
-                    signal.send(sender=None, user=context["request"].user, post=cc_content)
                 else:
                     context["cc_requester"].unvote(cc_content)
 
