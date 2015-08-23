@@ -42,8 +42,11 @@ site_status_msg = get_site_status_msg(course_id)
     <h1 class="logo">
       <a href="${marketing_link('ROOT')}">
         <%block name="navigation_logo">
-            <img src="${static.url(branding.get_logo_url())}" alt="${platform_name()}"/>
-        </%block>
+            ## TODO: Figure out how to get the assets compiled by the pileline
+            ## TODO: Get asset served from proper CDN
+            ##<img src="${static.url(branding.get_logo_url())}" alt="${platform_name()}"/>
+            <img src="http://orthosurg.ucsf.edu/oti/wp-content/themes/oti-2/images/igot-logo-1.png" alt="${platform_name()}"/> 
+ 	</%block>
       </a>
     </h1>
 
