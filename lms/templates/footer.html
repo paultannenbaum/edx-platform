@@ -1,4 +1,4 @@
-## mako
+
 <%!
   from django.core.urlresolvers import reverse
   from django.utils.translation import ugettext as _
@@ -27,6 +27,7 @@
         </ol>
       </nav>
 
+      <%doc>
       <div class="wrapper-logo">
         <p>
           <a href="/">
@@ -41,6 +42,7 @@
           </a>
         </p>
       </div>
+      </%doc>
 
       ## Site operators: Please do not remove this paragraph! This attributes back to edX and makes your acknowledgement of edX's trademarks clear.
       <p class="copyright">${footer['copyright']}</p>
