@@ -67,9 +67,12 @@ site_status_msg = get_site_status_msg(course_id)
     <ol class="left nav-global authenticated">
       <%block name="navigation_global_links_authenticated">
         % if settings.FEATURES.get('COURSES_ARE_BROWSABLE'):
-          <li class="nav-global-01">
+          ## TODO: Removing "Find Course" functionality for now
+          <%doc>
+	  <li class="nav-global-01">
             <a href="${marketing_link('COURSES')}">${_('Find Courses')}</a>
           </li>
+          </%doc>
         % endif
         %if settings.FEATURES.get('ENABLE_SYSADMIN_DASHBOARD','') and user.is_staff:
           <li>
