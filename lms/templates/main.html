@@ -185,6 +185,14 @@ from branding import api as branding_api
       header.global h1.logo {
         display: none;
       }
+
+      .is-authenticated header.global h1.logo {
+        display: inline-block;
+      }
+
+      .is-authenticated header.global h1.logo img {
+        max-width: 200px;
+      }
     }
   </style>
 
