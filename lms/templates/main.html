@@ -170,11 +170,16 @@ from branding import api as branding_api
 
   <!-- IGOT specific styling -->
   <style>
+    .home>header .title>hgroup h2, .home>header .title>hgroup section.outside-app h1, section.outside-app .home>header .title>hgroup h1 {
+      text-transform: none;
+    }
+
     .home > header {
       background: url('/static/images/default-theme/front-hero-bg.jpg') no-repeat top left;
       max-width: 1200px;
       margin: 0 auto;
       max-height: 375px;
+      display: block;
     }
 
     .highlighted-courses .courses {
